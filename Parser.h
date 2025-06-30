@@ -48,6 +48,57 @@ namespace Json
 		static inline const uint8_t stringStart = '\"';
 		static inline const uint8_t stringEnd = '\"';
 
+		static inline const uint8_t escapedCharStart = '\\';
+		//static inline const std::array<uint8_t, 15> escapeChars =
+		//{ '"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u' };
+
+	private:
+		template<typename Stream>
+		static inline void handleEscapedChar(Stream& input, std::string& string) {
+			input.get(); //consume escapedCharStart
+			if (!input.good()) throw std::runtime_error("Unterminated escape sequence");
+			char escaped = input.get();
+			switch (escaped) {
+			case '"':  string.push_back('"'); break;
+			case '\\': string.push_back('\\'); break;
+			case '/':  string.push_back('/'); break;
+			case 'b':  string.push_back('\b'); break;
+			case 'f':  string.push_back('\f'); break;
+			case 'n':  string.push_back('\n'); break;
+			case 'r':  string.push_back('\r'); break;
+			case 't':  string.push_back('\t'); break;
+			case 'u': {
+				// Unicode escape \uXXXX
+				std::string hex;
+				for (int i = 0; i < 4; ++i) {
+					if (!input.good()) throw std::runtime_error("Invalid unicode escape");
+					hex.push_back(input.get());
+				}
+				// Convert hex to unicode
+				unsigned int codepoint = std::stoul(hex, nullptr, 16);
+				if (codepoint <= 0x7F) {
+					string.push_back(static_cast<char>(codepoint));
+				}
+				else {
+					// Convert Unicode codepoint to UTF-8
+					if (codepoint <= 0x7FF) {
+						// 2-byte UTF-8
+						string.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
+						string.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+					} else {
+						// 3-byte UTF-8 (covers BMP)
+						string.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
+						string.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+						string.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+					}
+				}
+				break;
+			}
+			default:
+				throw std::runtime_error(std::string("Invalid escape sequence: \\") + escaped);
+			}
+		}
+
 	public:
 
 		template<typename Stream>
@@ -177,14 +228,18 @@ namespace Json
 		static inline std::unique_ptr<Value> parseString(Stream& input) {
 			std::string string;
 			input.get(); //consume stringStart
+			char c;
 			while (input.good())
 			{
-				if (input.peek() == stringEnd)
+				c = input.peek();
+				if (c == stringEnd)
 				{
 					input.get();
 					return std::make_unique<String>(std::move(string));
 				}
-				string.push_back(input.get());
+				else if (c == escapedCharStart)
+					handleEscapedChar(input, string);
+				else string.push_back(input.get());
 			}
 			throw std::runtime_error("Invalid string syntax");
 		}
