@@ -6,8 +6,7 @@
 void testFile(const std::string& filename, bool shouldSucceed = true) {
 	std::cout << "Testing " << filename << "... ";
 	try {
-		std::ifstream file(filename);
-		auto doc = Json::Parser::parse(file);
+		auto doc = Json::Parser::parseFile(filename);
 		if (shouldSucceed) {
 			std::cout << "PASSED (" << doc.roots().size() << " documents)" << std::endl;
 		} else {
@@ -25,8 +24,7 @@ void testFile(const std::string& filename, bool shouldSucceed = true) {
 void testString(const std::string& json, const std::string& testName, bool shouldSucceed = true) {
 	std::cout << "Testing " << testName << "... ";
 	try {
-		std::istringstream stream(json);
-		auto doc = Json::Parser::parse(stream);
+		auto doc = Json::Parser::parse(json);
 		if (shouldSucceed) {
 			std::cout << "PASSED" << std::endl;
 		} else {

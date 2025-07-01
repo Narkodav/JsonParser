@@ -42,6 +42,9 @@
     <ClInclude Include="ValueTypes\Null.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MappedFile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Parser.cpp">
@@ -71,7 +74,7 @@
     <ClCompile Include="ValueTypes\Null.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test_main.cpp">
+    <ClCompile Include="benchmark.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
