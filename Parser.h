@@ -18,6 +18,8 @@
 #include "ValueTypes/Object.h"
 #include "ValueTypes/String.h"
 
+//#include "SIMDFunctions.h"
+
 namespace Json
 {
 	class Parser
@@ -107,20 +109,21 @@ namespace Json
 	private:
 
 		template<typename Container>
-		static inline void skipComment(Container& input, size_t& i)
+		static inline size_t skipComment(Container& input, size_t i)
 		{
+			++i;
 			if (i >= input.size()) throw std::runtime_error("Invalid comment syntax");
 			char c = input[i];
 			++i;
 			if (c == lineComment) {
 				for (; i < input.size() && input[i] != '\n'; ++i); // skip to end of line
-				return;
+				return i;
 			}
 			else if (c == blockCommentStart) {
 				for (; i < input.size(); ++i)
 				{
 					if (input[i] == blockCommentEnd && ++i < input.size() && input[i] == commentStart) {
-						return;
+						return i;
 					}
 				}
 				throw std::runtime_error("Endless block comment");
@@ -128,63 +131,25 @@ namespace Json
 			throw std::runtime_error("Invalid comment syntax");
 		}
 
+		//skips to the next significant char
 		template<typename Container>
-		static inline bool skipToNextValue(Container& input, size_t& i, uint8_t end)
+		static inline size_t skipWhitespace(Container& input, size_t i)
 		{
 			char c;
-			for (; i < input.size(); ++i)
+			for(; i < input.size(); ++i)
 			{
 				c = input[i];
-				if (c == commentStart)
-					skipComment(input, ++i);
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end())
+				if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c) {
 					continue;
-				else if (c == end)
-					return true;
-				else return false;
-			}
-			throw std::runtime_error("Could not find next value");
-		}
-
-		template<typename Container>
-		static inline bool skipToNextSeparator(Container& input, size_t& i,
-		uint8_t separator, uint8_t end)
-		{
-			char c;
-			for (; i < input.size(); ++i)
-			{
-				c = input[i];
-				if (c == commentStart)
-					skipComment(input, ++i);
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end())
-					continue;
-				else if (c == separator)
-					return false;
-				else if (c == end)
-					return true;
-				else throw std::runtime_error("Invalid JSON syntax");
-			}
-			throw std::runtime_error("Could not find separator or end of object");
-		}
-
-		template<typename Container>
-		static void skipToNextRootSeparator(Container& input, size_t& i)
-		{
-			char c;
-			for (; i < input.size(); ++i)
-			{
-				c = input[i];
-				if (c == rootSeparator)
-				{
-					return;
 				}
-				else if (c == commentStart)
-					skipComment(input, ++i);
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					== whitespaceCharacters.end())
-					throw std::runtime_error("Non whitespace character found");
+				else if (c == commentStart) {
+					i = skipComment(input, i);
+					continue;
+				}
+				return i;
 			}
 		}
 
@@ -196,8 +161,11 @@ namespace Json
 			for (; i < input.size(); ++i)
 			{
 				c = input[i];
-				if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end() || c == valueSeparator || c == endObject
+				if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c
+					|| c == valueSeparator || c == endObject
 					|| c == endArray || c == commentStart)
 					return std::make_unique<Number>(std::stod(string));
 				string.push_back(c);
@@ -206,9 +174,10 @@ namespace Json
 		}
 
 		template<typename Container>
-		static inline std::unique_ptr<Value> parseString(Container& input, size_t& i)
+		static inline std::string parseString(Container& input, size_t& i)
 		{
 			std::string string;
+			++i;
 			char c;
 			for (; i < input.size(); ++i)
 			{
@@ -216,7 +185,7 @@ namespace Json
 				if (c == stringEnd)
 				{
 					++i;
-					return std::make_unique<String>(std::move(string));
+					return string;
 				}
 				else if (c == escapedCharStart)
 					handleEscapedChar(input, ++i, string);
@@ -228,6 +197,7 @@ namespace Json
 		template<typename Container>
 		static inline std::unique_ptr<Value> parseBoolTrue(Container& input, size_t& i)
 		{
+			++i;
 			for (size_t j = 1; j < trueLiteral.size() && i < input.size(); ++j, ++i) {
 				if (input[i] != trueLiteral[j]) {
 					throw std::runtime_error("Invalid bool true literal");
@@ -239,6 +209,7 @@ namespace Json
 		template<typename Container>
 		static inline std::unique_ptr<Value> parseBoolFalse(Container& input, size_t& i)
 		{
+			++i;
 			for (size_t j = 1; j < falseLiteral.size() && i < input.size(); ++j, ++i) {
 				if (input[i] != falseLiteral[j]) {
 					throw std::runtime_error("Invalid bool false literal");
@@ -250,6 +221,7 @@ namespace Json
 		template<typename Container>
 		static inline std::unique_ptr<Value> parseNull(Container& input, size_t& i)
 		{
+			++i;
 			for (size_t j = 1; j < nullLiteral.size() && i < input.size(); ++j, ++i) {
 				if (input[i] != nullLiteral[j]) {
 					throw std::runtime_error("Invalid null literal");
@@ -259,20 +231,102 @@ namespace Json
 		}
 
 		template<typename Container>
+		static std::unique_ptr<Value> parseArray(Container& input, size_t& i)
+		{
+			std::unique_ptr<Array> array = std::make_unique<Array>();
+			for (; i < input.size();)
+			{
+				i = skipWhitespace(input, ++i);
+				if (input[i] == endArray)
+				{
+					++i;
+					return array;
+				}
+				array->m_values.emplace_back(std::move(parseValue(input, i)));
+				i = skipWhitespace(input, i);
+				if (i == input.size())
+					throw std::runtime_error("Endless array");
+				else if (input[i] != valueSeparator)
+				{
+					if (input[i] == endArray)
+					{
+						++i;
+						return array;
+					}
+					else throw std::runtime_error("No value separator after array value");
+				}
+			}
+			throw std::runtime_error("Endless array");
+		}
+
+		template<typename Container>
+		static std::unique_ptr<Value> parseObject(Container& input, size_t& i)
+		{
+			std::unique_ptr<Object> object = std::make_unique<Object>();
+			char c;
+			for (; i < input.size();)
+			{			
+				i = skipWhitespace(input, ++i);
+				c = input[i];
+				if (c == stringStart) {
+					std::string name = parseString(input, i);
+					if (object->m_values.find(name) != object->m_values.end())
+						throw std::runtime_error(std::string("Duplicate key: ") + name);
+					i = skipWhitespace(input, i);
+					if (i == input.size())
+						throw std::runtime_error("Endless object");
+					else if (input[i] != nameSeparator)
+						throw std::runtime_error("No name separator after object key");
+
+					i = skipWhitespace(input, ++i);
+					object->m_values.emplace(
+						std::move(name), std::move(parseValue(input, i)));
+					i = skipWhitespace(input, i);
+					if (i == input.size())
+						throw std::runtime_error("Endless object");
+					else if (input[i] != valueSeparator)
+					{
+						if (input[i] == endObject)
+						{
+							++i;
+							return object;
+						}
+						else throw std::runtime_error("No value separator after object value");
+					}
+				}
+				else if (c == endObject)
+				{
+					++i;
+					return object;
+				}
+				else {
+					throw std::runtime_error("Invalid object syntax: " + std::to_string(c));
+				}				
+			}
+			throw std::runtime_error("Endless object");
+		};
+
+		template<typename Container>
 		static std::unique_ptr<Value> parseValue(Container& input, size_t& i)
 		{
 			char c = input[i];
-			if (c == stringStart) {
-				return parseString(input, ++i);
+			if (c == beginObject) {
+				return parseObject(input, i);
+			}
+			else if (c == beginArray) {
+				return parseArray(input, i);
+			}
+			else if (c == stringStart) {
+				return std::make_unique<String>(parseString(input, i));
 			}
 			else if (c == trueLiteral[0]) {
-				return parseBoolTrue(input, ++i);
+				return parseBoolTrue(input, i);
 			}
 			else if (c == falseLiteral[0]) {
-				return parseBoolFalse(input, ++i);
+				return parseBoolFalse(input, i);
 			}
 			else if (c == nullLiteral[0]) {
-				return parseNull(input, ++i);
+				return parseNull(input, i);
 			}
 			else if (c == numberStartCharacters[11]
 				|| c == numberStartCharacters[10]
@@ -285,159 +339,18 @@ namespace Json
 			}
 		}
 
-		template<typename Container>
-		static std::unique_ptr<Value> parseArray(Container& input, size_t& i)
-		{
-			std::unique_ptr<Array> array = std::make_unique<Array>();
-			char c;
-			for (; i < input.size(); ++i)
-			{
-				try
-				{
-					if (skipToNextValue(input, i, endArray))
-						return array;
-				}
-				catch (const std::exception& e) {
-					throw std::runtime_error(std::string("Invalid array syntax: ") + e.what());
-				}
-				c = input[i];
-				if (c == beginObject) {
-					array->m_values.emplace_back(std::move(parseObject(input, ++i)));
-					++i;
-					try
-					{
-						if (skipToNextSeparator(input, i, valueSeparator, endArray))
-							return array;
-					}
-					catch (const std::exception& e) {
-						throw std::runtime_error(std::string("Invalid array syntax: ") + e.what());
-					}
-				}
-				else if (c == beginArray) {
-					array->m_values.emplace_back(std::move(parseArray(input, ++i)));
-					++i;
-					try
-					{
-						if (skipToNextSeparator(input, i, valueSeparator, endArray))
-							return array;
-					}
-					catch (const std::exception& e) {
-						throw std::runtime_error(std::string("Invalid array syntax: ") + e.what());
-					}
-				}
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end()) {
-					continue;
-				}
-				else if (c == commentStart) {
-					skipComment(input, ++i);
-				}
-				else {
-					array->m_values.emplace_back(std::move(parseValue(input, i)));
-					try
-					{
-						if (skipToNextSeparator(input, i, valueSeparator, endArray))
-							return array;
-					}
-					catch (const std::exception& e) {
-						throw std::runtime_error(std::string("Invalid array syntax: ") + e.what());
-					}
-				}
-			}
-			throw std::runtime_error("Endless array");
-		}
-
-		template<typename Container>
-		static std::unique_ptr<Value> parseValueForPair(Container& input, size_t& i)
-		{
-			if (skipToNextSeparator(input, i, nameSeparator, endObject) ||
-				skipToNextValue(input, ++i, endObject))
-				throw std::runtime_error("No value for name tag");
-			char c = input[i];
-			if (c == beginObject) {
-				auto object = parseObject(input, ++i);
-				++i;
-				return object;
-			}
-			else if (c == beginArray) {
-				auto array = parseArray(input, ++i);
-				++i;
-				return array;
-			}
-			else return parseValue(input, i);
-		}
-
-		template<typename Container>
-		static std::unique_ptr<Value> parseObject(Container& input, size_t& i)
-		{
-			std::unique_ptr<Object> object = std::make_unique<Object>();
-
-			char c;
-			for (; i < input.size(); ++i)
-			{
-				if (skipToNextValue(input, i, endObject))
-					return object;
-				c = input[i];
-				if (c == stringStart) {
-					std::unique_ptr<Value> name = std::move(parseString(input, ++i));
-					if (object->m_values.find(name->asString().data()) != object->m_values.end())
-						throw std::runtime_error(std::string("Duplicate key: ") + name->asString().data());
-					auto value = parseValueForPair(input, i);
-					object->m_values.emplace(name->asString().data(), std::move(value));
-					try
-					{
-						if (skipToNextSeparator(input, i, valueSeparator, endObject))
-							return object;
-					}
-					catch (const std::exception& e) {
-						throw std::runtime_error(std::string("Invalid object syntax: ") + e.what());
-					}
-				}
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end()) {
-					continue;
-				}
-				else if (c == commentStart) {
-					skipComment(input, ++i);
-				}
-				else {
-					throw std::runtime_error("Invalid object syntax: " + std::to_string(c));
-				}
-			}
-			throw std::runtime_error("Endless object");
-		};
-
 	public:
 		template<typename Container>
 		static Document parse(Container& input)
 		{
 			Document document;
 			try {
-				char c;
-				for (size_t i = 0; i < input.size(); ++i)
+				for (size_t i = 0; i < input.size();)
 				{
-					c = input[i];
-					if (c == beginObject) {
-						document.m_roots.emplace_back(std::move(parseObject(input, ++i)));
-						++i;
-						skipToNextRootSeparator(input, i);
-					}
-					else if (c == beginArray) {
-						document.m_roots.emplace_back(std::move(parseArray(input, ++i)));
-						++i;
-						skipToNextRootSeparator(input, i);
-					}
-					else if (c == rootSeparator || std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-						!= whitespaceCharacters.end()) {
-						continue;
-					}
-					else if (c == commentStart) {
-						skipComment(input, ++i);
-					}
-					else {
-						document.m_roots.emplace_back(std::move(parseValue(input, i)));
-						skipToNextRootSeparator(input, i);
-					}
+					i = skipWhitespace(input, i);
+					if (i == input.size())
+						break;
+					document.m_roots.emplace_back(std::move(parseValue(input, i)));
 				}
 			}
 			catch (const std::exception& e) {

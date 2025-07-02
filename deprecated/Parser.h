@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <fstream>
 
+#include "MappedFile.h"
+
 #include "Document.h"
 
 #include "ValueTypes/Array.h"
@@ -53,11 +55,11 @@ namespace Json
 		//{ '"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u' };
 
 	private:
-		template<typename Stream>
-		static inline void handleEscapedChar(Stream& input, std::string& string) {
-			input.get(); //consume escapedCharStart
-			if (!input.good()) throw std::runtime_error("Unterminated escape sequence");
-			char escaped = input.get();
+		template<typename Container>
+		static inline void handleEscapedChar(Container& input, size_t& i, std::string& string)
+		{
+			if (i >= input.size()) throw std::runtime_error("Unterminated escape sequence");
+			char escaped = input[i];
 			switch (escaped) {
 			case '"':  string.push_back('"'); break;
 			case '\\': string.push_back('\\'); break;
@@ -69,11 +71,13 @@ namespace Json
 			case 't':  string.push_back('\t'); break;
 			case 'u': {
 				// Unicode escape \uXXXX
+				i += 4;
+				if (i >= input.size())
+					throw std::runtime_error("Invalid unicode escape");
+
 				std::string hex;
-				for (int i = 0; i < 4; ++i) {
-					if (!input.good()) throw std::runtime_error("Invalid unicode escape");
-					hex.push_back(input.get());
-				}
+				hex.append(&input[i - 3], 4);
+
 				// Convert hex to unicode
 				unsigned int codepoint = std::stoul(hex, nullptr, 16);
 				if (codepoint <= 0x7F) {
@@ -85,7 +89,8 @@ namespace Json
 						// 2-byte UTF-8
 						string.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
 						string.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-					} else {
+					}
+					else {
 						// 3-byte UTF-8 (covers BMP)
 						string.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
 						string.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
@@ -99,221 +104,218 @@ namespace Json
 			}
 		}
 
-	public:
+	private:
 
-		template<typename Stream>
-		static inline void skipComment(Stream& input) {
-			input.get(); // consume '/'
-			char next = input.get();
-			if (next == lineComment) {
-				while (input.good() && input.get() != '\n'); // skip to end of line
+		template<typename Container>
+		static inline void skipComment(Container& input, size_t& i)
+		{
+			if (i >= input.size()) throw std::runtime_error("Invalid comment syntax");
+			char c = input[i];
+			++i;
+			if (c == lineComment) {
+				for (; i < input.size() && input[i] != '\n'; ++i); // skip to end of line
+				return;
 			}
-			else if (next == blockCommentStart) {
-				while (input.good()) {
-					if (input.get() == blockCommentEnd && input.peek() == commentStart) {
-						input.get(); // consume '/'
+			else if (c == blockCommentStart) {
+				for (; i < input.size(); ++i)
+				{
+					if (input[i] == blockCommentEnd && ++i < input.size() && input[i] == commentStart) {
 						return;
 					}
 				}
 				throw std::runtime_error("Endless block comment");
 			}
-			else {
-				throw std::runtime_error("Invalid comment syntax");
-			}
+			throw std::runtime_error("Invalid comment syntax");
 		}
 
-		template<typename Stream>
-		static inline bool skipToNextValue(Stream& input, uint8_t end) {
+		template<typename Container>
+		static inline bool skipToNextValue(Container& input, size_t& i, uint8_t end)
+		{
 			char c;
-			while (input.good()) {
-				c = input.peek();
+			for (; i < input.size(); ++i)
+			{
+				c = input[i];
 				if (c == commentStart)
-					skipComment(input);
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end())
-					input.get();
+					skipComment(input, ++i);
+				else if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c)
+					continue;
 				else if (c == end)
-				{
-					input.get();
 					return true;
-				}
 				else return false;
 			}
 			throw std::runtime_error("Could not find next value");
 		}
 
-		template<typename Stream>
-		static inline bool skipToNextSeparator(Stream& input, uint8_t separator, uint8_t end) {
+		template<typename Container>
+		static inline bool skipToNextSeparator(Container& input, size_t& i,
+		uint8_t separator, uint8_t end)
+		{
 			char c;
-			while (input.good()) {
-				c = input.peek();
+			for (; i < input.size(); ++i)
+			{
+				c = input[i];
 				if (c == commentStart)
-					skipComment(input);
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end())
-					input.get();
+					skipComment(input, ++i);
+				else if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c)
+					continue;
 				else if (c == separator)
-				{
-					input.get();
 					return false;
-				}
 				else if (c == end)
-				{
-					input.get();
 					return true;
-				}
 				else throw std::runtime_error("Invalid JSON syntax");
 			}
 			throw std::runtime_error("Could not find separator or end of object");
 		}
 
-		template<typename Stream>
-		static void skipToNextRootSeparator(Stream& input) {
+		template<typename Container>
+		static void skipToNextRootSeparator(Container& input, size_t& i)
+		{
 			char c;
-			while (input.good()) {
-				c = input.peek();
-				if(c == rootSeparator)
+			for (; i < input.size(); ++i)
+			{
+				c = input[i];
+				if (c == rootSeparator)
 				{
-					c = input.get();
 					return;
 				}
 				else if (c == commentStart)
-					skipComment(input);
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					== whitespaceCharacters.end())
+					skipComment(input, ++i);
+				else if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c)
 					throw std::runtime_error("Non whitespace character found");
-				input.get();
 			}
 		}
 
-		/*		template<typename Stream>
-				static void skipToEnd(Stream& input, uint8_t end) {
-					char c;
-					while (input.good()) {
-						c = input.peek();
-						if(c == end)
-						{
-							c = input.get();
-							return;
-						}
-						else if (c == commentStart)
-							skipComment(input);
-						else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-							== whitespaceCharacters.end())
-							throw std::runtime_error("Non whitespace character found");
-						input.get();
-					}
-					throw std::runtime_error("Endless object");
-				}	*/
-
-		template<typename Stream>
-		static inline std::unique_ptr<Value> parseNumber(Stream& input) {
+		template<typename Container>
+		static inline std::unique_ptr<Value> parseNumber(Container& input, size_t& i)
+		{
 			std::string string;
-			char c = input.peek();
-			while (input.good())
+			char c;
+			for (; i < input.size(); ++i)
 			{
-				if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end() || c == valueSeparator || c == endObject
+				c = input[i];
+				if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c 
+					|| c == valueSeparator || c == endObject
 					|| c == endArray || c == commentStart)
 					return std::make_unique<Number>(std::stod(string));
-				string.push_back(input.get());
-				c = input.peek();
+				string.push_back(c);
 			}
-			if (!input.good())
-				return std::make_unique<Number>(std::stod(string));
-			throw std::runtime_error("Invalid number syntax");
+			return std::make_unique<Number>(std::stod(string));
 		}
 
-		template<typename Stream>
-		static inline std::unique_ptr<Value> parseString(Stream& input) {
+		template<typename Container>
+		static inline std::unique_ptr<Value> parseString(Container& input, size_t& i)
+		{
 			std::string string;
-			input.get(); //consume stringStart
 			char c;
-			while (input.good())
+			for (; i < input.size(); ++i)
 			{
-				c = input.peek();
+				c = input[i];
 				if (c == stringEnd)
 				{
-					input.get();
+					++i;
 					return std::make_unique<String>(std::move(string));
 				}
 				else if (c == escapedCharStart)
-					handleEscapedChar(input, string);
-				else string.push_back(input.get());
+					handleEscapedChar(input, ++i, string);
+				else string.push_back(c);
 			}
 			throw std::runtime_error("Invalid string syntax");
 		}
 
-		template<typename Stream>
-		static inline std::unique_ptr<Value> parseBoolTrue(Stream& input) {
-			for (size_t i = 0; i < trueLiteral.size(); ++i) {
-				if (input.get() != trueLiteral[i]) {
+		template<typename Container>
+		static inline std::unique_ptr<Value> parseBoolTrue(Container& input, size_t& i)
+		{
+			for (size_t j = 1; j < trueLiteral.size() && i < input.size(); ++j, ++i) {
+				if (input[i] != trueLiteral[j]) {
 					throw std::runtime_error("Invalid bool true literal");
 				}
 			}
 			return std::make_unique<Bool>(true);
 		}
 
-		template<typename Stream>
-		static inline std::unique_ptr<Value> parseBoolFalse(Stream& input) {
-			for (size_t i = 0; i < falseLiteral.size(); ++i) {
-				if (input.get() != falseLiteral[i]) {
+		template<typename Container>
+		static inline std::unique_ptr<Value> parseBoolFalse(Container& input, size_t& i)
+		{
+			for (size_t j = 1; j < falseLiteral.size() && i < input.size(); ++j, ++i) {
+				if (input[i] != falseLiteral[j]) {
 					throw std::runtime_error("Invalid bool false literal");
 				}
 			}
 			return std::make_unique<Bool>(false);
 		}
 
-		template<typename Stream>
-		static inline std::unique_ptr<Value> parseNull(Stream& input) {
-			for (size_t i = 0; i < nullLiteral.size(); ++i) {
-				if (input.get() != nullLiteral[i]) {
+		template<typename Container>
+		static inline std::unique_ptr<Value> parseNull(Container& input, size_t& i)
+		{
+			for (size_t j = 1; j < nullLiteral.size() && i < input.size(); ++j, ++i) {
+				if (input[i] != nullLiteral[j]) {
 					throw std::runtime_error("Invalid null literal");
 				}
 			}
 			return std::make_unique<Null>();
 		}
 
-		template<typename Stream>
-		static std::unique_ptr<Value> parseValue(Stream& input) {
-			char c = input.peek();
+		template<typename Container>
+		static std::unique_ptr<Value> parseValue(Container& input, size_t& i)
+		{
+			char c = input[i];
 			if (c == stringStart) {
-				return parseString(input);
+				return parseString(input, ++i);
 			}
 			else if (c == trueLiteral[0]) {
-				return parseBoolTrue(input);
+				return parseBoolTrue(input, ++i);
 			}
 			else if (c == falseLiteral[0]) {
-				return parseBoolFalse(input);
+				return parseBoolFalse(input, ++i);
 			}
 			else if (c == nullLiteral[0]) {
-				return parseNull(input);
+				return parseNull(input, ++i);
 			}
 			else if (c == numberStartCharacters[11]
 				|| c == numberStartCharacters[10]
 				|| (c >= numberStartCharacters[0]
 					&& c <= numberStartCharacters[9])) {
-				return parseNumber(input);
+				return parseNumber(input, i);
 			}
 			else {
 				throw std::runtime_error(std::string("Invalid value syntax: ") + c);
 			}
 		}
 
-		template<typename Stream>
-		static std::unique_ptr<Value> parseArray(Stream& input) {
+		template<typename Container>
+		static std::unique_ptr<Value> parseArray(Container& input, size_t& i)
+		{
 			std::unique_ptr<Array> array = std::make_unique<Array>();
-			input.get(); //consume beginArray
-			if (skipToNextValue(input, endArray))
-				return array;
-			while (input.good()) {
-				char c = input.peek();
+			char c;
+			for (; i < input.size(); ++i)
+			{
+				try
+				{
+					if (skipToNextValue(input, i, endArray))
+						return array;
+				}
+				catch (const std::exception& e) {
+					throw std::runtime_error(std::string("Invalid array syntax: ") + e.what());
+				}
+				c = input[i];
 				if (c == beginObject) {
-					array->m_values.emplace_back(std::move(parseObject(input)));
+					array->m_values.emplace_back(std::move(parseObject(input, ++i)));
+					++i;
 					try
 					{
-						if (skipToNextSeparator(input, valueSeparator, endArray) ||
-							skipToNextValue(input, endArray))
+						if (skipToNextSeparator(input, i, valueSeparator, endArray))
 							return array;
 					}
 					catch (const std::exception& e) {
@@ -321,31 +323,31 @@ namespace Json
 					}
 				}
 				else if (c == beginArray) {
-					array->m_values.emplace_back(std::move(parseArray(input)));
+					array->m_values.emplace_back(std::move(parseArray(input, ++i)));
+					++i;
 					try
 					{
-						if (skipToNextSeparator(input, valueSeparator, endArray) ||
-							skipToNextValue(input, endArray))
+						if (skipToNextSeparator(input, i, valueSeparator, endArray))
 							return array;
 					}
 					catch (const std::exception& e) {
 						throw std::runtime_error(std::string("Invalid array syntax: ") + e.what());
 					}
 				}
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end()) {
-					input.get();
+				else if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c) {
 					continue;
 				}
 				else if (c == commentStart) {
-					skipComment(input);
+					skipComment(input, ++i);
 				}
 				else {
-					array->m_values.emplace_back(std::move(parseValue(input)));
+					array->m_values.emplace_back(std::move(parseValue(input, i)));
 					try
 					{
-						if (skipToNextSeparator(input, valueSeparator, endArray) ||
-							skipToNextValue(input, endArray))
+						if (skipToNextSeparator(input, i, valueSeparator, endArray))
 							return array;
 					}
 					catch (const std::exception& e) {
@@ -354,54 +356,62 @@ namespace Json
 				}
 			}
 			throw std::runtime_error("Endless array");
-		};
-
-		template<typename Stream>
-		static std::unique_ptr<Value> parseValueForPair(Stream& input) {
-			if (skipToNextSeparator(input, nameSeparator, endObject) ||
-				skipToNextValue(input, endObject))
-				throw std::runtime_error("No value for name tag");
-			char c = input.peek();
-			if (c == beginObject) {
-				return parseObject(input);
-			}
-			else if (c == beginArray) {
-				return parseArray(input);
-			}
-			else return parseValue(input);			
 		}
 
-		template<typename Stream>
-		static std::unique_ptr<Value> parseObject(Stream& input) {
-			std::unique_ptr<Object> object = std::make_unique<Object>();
-			input.get(); //consume beginObject
-			if (skipToNextValue(input, endObject))
+		template<typename Container>
+		static std::unique_ptr<Value> parseValueForPair(Container& input, size_t& i)
+		{
+			if (skipToNextSeparator(input, i, nameSeparator, endObject) ||
+				skipToNextValue(input, ++i, endObject))
+				throw std::runtime_error("No value for name tag");
+			char c = input[i];
+			if (c == beginObject) {
+				auto object = parseObject(input, ++i);
+				++i;
 				return object;
-			while (input.good()) {
-				char c = input.peek();
+			}
+			else if (c == beginArray) {
+				auto array = parseArray(input, ++i);
+				++i;
+				return array;
+			}
+			else return parseValue(input, i);
+		}
+
+		template<typename Container>
+		static std::unique_ptr<Value> parseObject(Container& input, size_t& i)
+		{
+			std::unique_ptr<Object> object = std::make_unique<Object>();
+
+			char c;
+			for (; i < input.size(); ++i)
+			{
+				if (skipToNextValue(input, i, endObject))
+					return object;
+				c = input[i];
 				if (c == stringStart) {
-					std::unique_ptr<Value> name = std::move(parseString(input));
+					std::unique_ptr<Value> name = std::move(parseString(input, ++i));
 					if (object->m_values.find(name->asString().data()) != object->m_values.end())
 						throw std::runtime_error(std::string("Duplicate key: ") + name->asString().data());
-					auto value = parseValueForPair(input);
+					auto value = parseValueForPair(input, i);
 					object->m_values.emplace(name->asString().data(), std::move(value));
 					try
 					{
-						if (skipToNextSeparator(input, valueSeparator, endObject) ||
-							skipToNextValue(input, endObject))
+						if (skipToNextSeparator(input, i, valueSeparator, endObject))
 							return object;
 					}
 					catch (const std::exception& e) {
-						throw std::runtime_error(std::string("Invalid array syntax: ") + e.what());
+						throw std::runtime_error(std::string("Invalid object syntax: ") + e.what());
 					}
 				}
-				else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-					!= whitespaceCharacters.end()) {
-					input.get();
+				else if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c) {
 					continue;
 				}
 				else if (c == commentStart) {
-					skipComment(input);
+					skipComment(input, ++i);
 				}
 				else {
 					throw std::runtime_error("Invalid object syntax: " + std::to_string(c));
@@ -410,65 +420,39 @@ namespace Json
 			throw std::runtime_error("Endless object");
 		};
 
-		template<typename Stream>
-		static Document parse(Stream& input) {
+	public:
+		template<typename Container>
+		static Document parse(Container& input)
+		{
 			Document document;
 			try {
-				while (input.good()) {
-					char c = input.peek();
+				char c;
+				for (size_t i = 0; i < input.size(); ++i)
+				{
+					c = input[i];
 					if (c == beginObject) {
-						document.m_roots.emplace_back(std::move(parseObject(input)));
-						c = input.get();
-						if (c != rootSeparator)
-						{
-							try
-							{
-								skipToNextRootSeparator(input);
-							}
-							catch (const std::exception& e) {
-								throw std::runtime_error(std::string("Invalid root separation syntax: ") + e.what());
-							}
-						}
+						document.m_roots.emplace_back(std::move(parseObject(input, ++i)));
+						++i;
+						skipToNextRootSeparator(input, i);
 					}
 					else if (c == beginArray) {
-						document.m_roots.emplace_back(std::move(parseArray(input)));
-						c = input.get();
-						if (c != rootSeparator)
-						{
-							try
-							{
-								skipToNextRootSeparator(input);
-							}
-							catch (const std::exception& e) {
-								throw std::runtime_error(std::string("Invalid root separation syntax: ") + e.what());
-							}
-						}
+						document.m_roots.emplace_back(std::move(parseArray(input, ++i)));
+						++i;
+						skipToNextRootSeparator(input, i);
 					}
-					else if (c == rootSeparator) {
-						input.get();
-						continue;
-					}
-					else if (std::find(whitespaceCharacters.begin(), whitespaceCharacters.end(), c)
-						!= whitespaceCharacters.end()) {
-						input.get();
+					else if (c == rootSeparator 
+						|| whitespaceCharacters[0] == c
+						|| whitespaceCharacters[1] == c
+						|| whitespaceCharacters[2] == c
+						|| whitespaceCharacters[3] == c) {
 						continue;
 					}
 					else if (c == commentStart) {
-						skipComment(input);
+						skipComment(input, ++i);
 					}
 					else {
-						document.m_roots.emplace_back(std::move(parseValue(input)));
-						c = input.get();
-						if (c != rootSeparator)
-						{
-							try
-							{
-								skipToNextRootSeparator(input);
-							}
-							catch (const std::exception& e) {
-								throw std::runtime_error(std::string("Invalid root separation syntax: ") + e.what());
-							}
-						}
+						document.m_roots.emplace_back(std::move(parseValue(input, i)));
+						skipToNextRootSeparator(input, i);
 					}
 				}
 			}
@@ -477,10 +461,10 @@ namespace Json
 			}
 			return document;
 		}
-
+	
 		static Document parseFile(const std::string& filename) {
-			std::fstream file(filename, std::ios::in);
-			if (!file.is_open())
+			MappedFile file(filename.c_str());
+			if (!file.isMapped())
 				throw std::runtime_error("File not found: " + filename);
 			return parse(file);
 		}
