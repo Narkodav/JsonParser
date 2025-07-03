@@ -135,7 +135,7 @@
   <ItemGroup>
     <ClInclude Include="MappedFile.h" />
     <ClInclude Include="Parser.h" />
-    <ClInclude Include="SIMDFunctions.h" />
+    <ClInclude Include="SIMDUtils.h" />
     <ClInclude Include="ValueTypes\Null.h" />
     <ClInclude Include="ValueTypes\String.h" />
     <ClInclude Include="ValueTypes\Array.h" />

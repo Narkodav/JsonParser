@@ -18,7 +18,7 @@
 #include "ValueTypes/Object.h"
 #include "ValueTypes/String.h"
 
-//#include "SIMDFunctions.h"
+#include "SIMDUtils.h"
 
 namespace Json
 {
@@ -108,9 +108,115 @@ namespace Json
 
 	private:
 
+#ifdef HAS_AVX2
 		template<typename Container>
-		static inline size_t skipComment(Container& input, size_t i)
-		{
+		static inline size_t skipCommentSIMD32(const Container& input, size_t i) {
+
+			//static const __m256i ws_slash = _mm256_set1_epi8('/');
+			static const __m256i ws_star = _mm256_set1_epi8('*');
+			static const __m256i ws_lf = _mm256_set1_epi8('\n');
+			__m256i chunk;
+			uint32_t mask;
+
+			i += 2;
+			if (i >= input.size())
+				throw std::runtime_error("Invalid comment syntax");
+			else if (input[i - 1] == '/')
+			{
+				while (i + 32 <= input.size()) {
+					chunk = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&input[i]));
+					mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(chunk, ws_lf));
+					if (mask != 0)
+						return i + CTZ32(mask);
+					i += 32;
+				}
+				for (; i < input.size() && input[i] != '\n'; ++i);
+				return i;
+			}
+			else if (input[i - 1] == '*')
+			{
+				while (i + 32 <= input.size()) {
+					chunk = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&input[i]));
+					mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(chunk, ws_star));
+					if (mask != 0) {
+						size_t j = i + CTZ32(mask) + 1;
+						if (j >= input.size())
+							throw std::runtime_error("Invalid comment syntax");
+						else if (input[j] == '/')
+							return j;
+						i = j + 1;
+						continue;
+					}
+					i += 32;
+				}
+				for (; i < input.size(); ++i)
+				{
+					if (input[i] == '*' && ++i < input.size() && input[i] == '/') {
+						return i;
+					}
+				}
+				throw std::runtime_error("Endless block comment");
+			}
+			throw std::runtime_error(std::string("Invalid comment syntax") + input[i]);
+		};
+#endif
+
+#ifdef HAS_SSE2
+		template<typename Container>
+		static inline size_t skipCommentSIMD16(const Container& input, size_t i) {
+
+			//static const __m256i ws_slash = _mm256_set1_epi8('/');
+			static const __m128i ws_star = _mm_set1_epi8('*');
+			static const __m128i ws_lf = _mm_set1_epi8('\n');
+			__m128i chunk;
+			uint16_t mask;
+
+			i += 2;
+			if (i >= input.size())
+				throw std::runtime_error("Invalid comment syntax");
+			char c = input[i - 1];
+			if (c == '/')
+			{
+				while (i + 16 <= input.size()) {
+					chunk = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i]));
+					mask = _mm_movemask_epi8(_mm_cmpeq_epi8(chunk, ws_lf));
+					if (mask != 0)
+						return i + CTZ16(mask);
+					i += 16;
+				}
+				for (; i < input.size() && input[i] != '\n'; ++i);
+				return i;
+			}
+			else if (c == '*')
+			{
+				while (i + 16 <= input.size()) {
+					chunk = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i]));
+					mask = _mm_movemask_epi8(_mm_cmpeq_epi8(chunk, ws_star));
+					if (mask != 0) {
+						size_t j = i + CTZ16(mask) + 1;
+						if (j >= input.size())
+							throw std::runtime_error("Invalid comment syntax");
+						else if (input[j] == '/')
+							return j;
+						i = j + 1;
+						continue;
+					}
+					i += 16;
+				}
+				for (; i < input.size(); ++i)
+				{
+					if (input[i] == '*' && ++i < input.size() && input[i] == '/') {
+						return i;
+					}
+				}
+				throw std::runtime_error("Endless block comment");
+			}
+			throw std::runtime_error(std::string("Invalid comment syntax") + input[i]);
+		};
+#endif
+
+		template<typename Container>
+		static inline size_t skipCommentScalar(const Container& input, size_t i) {
 			++i;
 			if (i >= input.size()) throw std::runtime_error("Invalid comment syntax");
 			char c = input[i];
@@ -131,12 +237,42 @@ namespace Json
 			throw std::runtime_error("Invalid comment syntax");
 		}
 
-		//skips to the next significant char
+
+#ifdef HAS_AVX2
 		template<typename Container>
-		static inline size_t skipWhitespace(Container& input, size_t i)
-		{
+		static inline size_t skipWhitespaceSIMD32(const Container& input, size_t i) {
+			const size_t size = input.size();
+
+			static const __m256i ws_space = _mm256_set1_epi8(' ');
+			static const __m256i ws_tab = _mm256_set1_epi8('\t');
+			static const __m256i ws_cr = _mm256_set1_epi8('\r');
+			static const __m256i ws_lf = _mm256_set1_epi8('\n');
+
+			__m256i chunk;
+			uint32_t mask;
+
+			while (i + 32 <= size) {
+				chunk = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&input[i]));
+
+				mask = ~_mm256_movemask_epi8(_mm256_or_si256(
+					_mm256_or_si256(_mm256_cmpeq_epi8(chunk, ws_space), _mm256_cmpeq_epi8(chunk, ws_tab)),
+					_mm256_or_si256(_mm256_cmpeq_epi8(chunk, ws_cr), _mm256_cmpeq_epi8(chunk, ws_lf))));
+
+				if (mask != 0) {
+					size_t j = i + CTZ32(mask);
+					if (input[j] == '/')
+					{
+						i = skipCommentSIMD32(input, j) + 1;
+						continue;
+					}
+					return j;
+				}
+
+				i += 32;
+			}
+
 			char c;
-			for(; i < input.size(); ++i)
+			for (; i < input.size(); ++i)
 			{
 				c = input[i];
 				if (whitespaceCharacters[0] == c
@@ -146,11 +282,100 @@ namespace Json
 					continue;
 				}
 				else if (c == commentStart) {
-					i = skipComment(input, i);
+					i = skipCommentScalar(input, i);
 					continue;
 				}
 				return i;
 			}
+
+			return i;
+		};
+#endif
+
+#ifdef HAS_SSE2
+		template<typename Container>
+		static inline size_t skipWhitespaceSIMD16(const Container& input, size_t i) {
+			const size_t size = input.size();
+
+			static const __m128i ws_space = _mm_set1_epi8(' ');
+			static const __m128i ws_tab = _mm_set1_epi8('\t');
+			static const __m128i ws_cr = _mm_set1_epi8('\r');
+			static const __m128i ws_lf = _mm_set1_epi8('\n');
+
+			__m128i chunk;
+			uint16_t mask;
+
+			while (i + 16 <= size) {
+				chunk = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&input[i]));
+
+				mask = ~_mm_movemask_epi8(_mm_or_si128(
+					_mm_or_si128(_mm_cmpeq_epi8(chunk, ws_space), _mm_cmpeq_epi8(chunk, ws_tab)),
+					_mm_or_si128(_mm_cmpeq_epi8(chunk, ws_cr), _mm_cmpeq_epi8(chunk, ws_lf))));
+
+				if (mask != 0) {
+					size_t j = i + CTZ16(mask);
+					if (input[j] == '/')
+					{
+						i = skipCommentSIMD16(input, j) + 1;
+						continue;
+					}
+					return j;
+				}
+
+				i += 16;
+			}
+
+			char c;
+			for (; i < input.size(); ++i)
+			{
+				c = input[i];
+				if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c) {
+					continue;
+				}
+				else if (c == commentStart) {
+					i = skipCommentScalar(input, i);
+					continue;
+				}
+				return i;
+			}
+			return i;
+		};
+#endif
+
+		template<typename Container>
+		static inline size_t skipWhitespaceScalar(const Container& input, size_t i) {
+			char c;
+			for (; i < input.size(); ++i)
+			{
+				c = input[i];
+				if (whitespaceCharacters[0] == c
+					|| whitespaceCharacters[1] == c
+					|| whitespaceCharacters[2] == c
+					|| whitespaceCharacters[3] == c) {
+					continue;
+				}
+				else if (c == commentStart) {
+					i = skipCommentScalar(input, i);
+					continue;
+				}
+				return i;
+			}
+			return i;
+		}
+
+
+		template<typename Container>
+		static inline size_t skipWhitespace(const Container& input, size_t i) {
+#ifdef HAS_AVX2
+			return skipWhitespaceSIMD32(input, i);
+#elif defined(HAS_SSE2)
+			return skipWhitespaceSIMD16(input, i);
+#else 
+			return skipWhitespaceScalar(input, i);
+#endif
 		}
 
 		template<typename Container>
@@ -348,7 +573,7 @@ namespace Json
 				for (size_t i = 0; i < input.size();)
 				{
 					i = skipWhitespace(input, i);
-					if (i == input.size())
+					if (i >= input.size())
 						break;
 					document.m_roots.emplace_back(std::move(parseValue(input, i)));
 				}

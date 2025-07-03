@@ -42,7 +42,7 @@
     <ClInclude Include="MappedFile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SIMDFunctions.h">
+    <ClInclude Include="SIMDUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Parser.h">
