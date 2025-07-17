@@ -12,12 +12,12 @@ namespace Json
 		Bool() : Value() {};
 		Bool(bool value) : Value(), m_value(value) {};
 
-		bool isArray() override { return false; }
-		bool isBool() override { return true; }
-		bool isNumber() override { return false; }
-		bool isObject() override { return false; }
-		bool isString() override { return false; }
-		bool isNull() override { return false; }
+		bool isArray() const override { return false; }
+		bool isBool() const override { return true; }
+		bool isNumber() const override { return false; }
+		bool isObject() const override { return false; }
+		bool isString() const override { return false; }
+		bool isNull() const override { return false; }
 
 		const auto& data() const { return m_value; };
 		auto& data() { return m_value; };

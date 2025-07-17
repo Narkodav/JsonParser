@@ -146,15 +146,7 @@
     <ClInclude Include="ValueTypes\Value.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="benchmark.cpp" />
-    <ClCompile Include="Parser.cpp" />
-    <ClCompile Include="ValueTypes\Null.cpp" />
-    <ClCompile Include="ValueTypes\String.cpp" />
-    <ClCompile Include="ValueTypes\Array.cpp" />
-    <ClCompile Include="ValueTypes\Number.cpp" />
-    <ClCompile Include="ValueTypes\Object.cpp" />
-    <ClCompile Include="ValueTypes\Bool.cpp" />
-    <ClCompile Include="Document.cpp" />
+    <ClCompile Include="test_main.cpp" />
     <ClCompile Include="ValueTypes\Value.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

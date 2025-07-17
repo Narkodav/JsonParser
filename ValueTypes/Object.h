@@ -17,12 +17,12 @@ namespace Json
 	public:
 		Object() : Value() {};
 
-		bool isArray() override { return false; }
-		bool isBool() override { return false; }
-		bool isNumber() override { return false; }
-		bool isObject() override { return true; }
-		bool isString() override { return false; }
-		bool isNull() override { return false; }
+		bool isArray() const override { return false; }
+		bool isBool() const override { return false; }
+		bool isNumber() const override { return false; }
+		bool isObject() const override { return true; }
+		bool isString() const override { return false; }
+		bool isNull() const override { return false; }
 
 		const auto& data() const { return m_values; };
 		auto& data() { return m_values; };

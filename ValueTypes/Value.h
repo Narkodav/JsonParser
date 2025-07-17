@@ -16,18 +16,18 @@ namespace Json
 		Value() = default;
 		virtual ~Value() = default;
 
-		virtual bool isArray() = 0;
-		virtual bool isBool() = 0;
-		virtual bool isNumber() = 0;
-		virtual bool isObject() = 0;
-		virtual bool isString() = 0;
-		virtual bool isNull() = 0;
+		virtual bool isArray() const = 0;
+		virtual bool isBool() const = 0;
+		virtual bool isNumber() const = 0;
+		virtual bool isObject() const = 0;
+		virtual bool isString() const = 0;
+		virtual bool isNull() const = 0;
 
-		const Array& asArray();
-		const Bool& asBool();
-		const Number& asNumber();
-		const Object& asObject();
-		const String& asString();
+		const Array& asArray() const;
+		const Bool& asBool() const;
+		const Number& asNumber() const;
+		const Object& asObject() const;
+		const String& asString() const;
 	};
 }
 
