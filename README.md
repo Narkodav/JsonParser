@@ -6,7 +6,7 @@ A high-performance C++ JSON parser library with SIMD optimizations.
 
 ### Prerequisites
 - CMake 3.10 or higher
-- C++17 compatible compiler
+- C++20 compatible compiler
 
 ### Build Instructions
 
