@@ -107,6 +107,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalIncludeDirectories>E:\unik\C_code\libraries\JsonParser\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -124,6 +125,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalIncludeDirectories>E:\unik\C_code\libraries\JsonParser\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -133,21 +135,36 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="MappedFile.h" />
-    <ClInclude Include="Parser.h" />
-    <ClInclude Include="SIMDUtils.h" />
+    <ClInclude Include="include\JsonParser\Document.h" />
+    <ClInclude Include="include\JsonParser\MappedFile.h" />
+    <ClInclude Include="include\JsonParser\Parser.h" />
+    <ClInclude Include="include\JsonParser\SIMDUtils.h" />
+    <ClInclude Include="include\JsonParser\ValueTypes\Array.h" />
+    <ClInclude Include="include\JsonParser\ValueTypes\Bool.h" />
+    <ClInclude Include="include\JsonParser\ValueTypes\Null.h" />
+    <ClInclude Include="include\JsonParser\ValueTypes\Number.h" />
+    <ClInclude Include="include\JsonParser\ValueTypes\Object.h" />
+    <ClInclude Include="include\JsonParser\ValueTypes\String.h" />
+    <ClInclude Include="include\JsonParser\ValueTypes\Value.h" />
     <ClInclude Include="ValueTypes\Null.h" />
     <ClInclude Include="ValueTypes\String.h" />
     <ClInclude Include="ValueTypes\Array.h" />
     <ClInclude Include="ValueTypes\Number.h" />
     <ClInclude Include="ValueTypes\Object.h" />
     <ClInclude Include="ValueTypes\Bool.h" />
-    <ClInclude Include="Document.h" />
     <ClInclude Include="ValueTypes\Value.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="test_main.cpp" />
+    <ClCompile Include="src\ValueTypes\Value.cpp" />
+    <ClCompile Include="tests\benchmark.cpp" />
+    <ClCompile Include="tests\Main.cpp" />
+    <ClCompile Include="tests\test_main.cpp" />
     <ClCompile Include="ValueTypes\Value.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="tests\test.json" />
+    <None Include="tests\test_edge_cases.json" />
+    <None Include="tests\test_invalid.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

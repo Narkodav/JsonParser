@@ -1,9 +1,9 @@
-#include "Value.h"
-#include "Array.h"
-#include "Bool.h"
-#include "Number.h"
-#include "Object.h"
-#include "String.h"
+#include "JsonParser/ValueTypes/Value.h"
+#include "JsonParser/ValueTypes/Array.h"
+#include "JsonParser/ValueTypes/Bool.h"
+#include "JsonParser/ValueTypes/Number.h"
+#include "JsonParser/ValueTypes/Object.h"
+#include "JsonParser/ValueTypes/String.h"
 #include <stdexcept>
 
 namespace Json

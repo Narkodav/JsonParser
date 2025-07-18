@@ -1,4 +1,4 @@
-#include "Parser.h"
+#include "JsonParser/Parser.h"
 
 #include <iostream>
 #define assert(x) if(!(x)) throw std::runtime_error("Assertion failed: " #x);

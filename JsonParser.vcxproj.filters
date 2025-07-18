@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Document.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ValueTypes\Value.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -39,13 +36,37 @@
     <ClInclude Include="ValueTypes\Null.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MappedFile.h">
+    <ClInclude Include="include\JsonParser\ValueTypes\Array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SIMDUtils.h">
+    <ClInclude Include="include\JsonParser\ValueTypes\Bool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Parser.h">
+    <ClInclude Include="include\JsonParser\ValueTypes\Null.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\ValueTypes\Number.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\ValueTypes\Object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\ValueTypes\String.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\ValueTypes\Value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\Document.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\MappedFile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\Parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\SIMDUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -53,8 +74,22 @@
     <ClCompile Include="ValueTypes\Value.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test_main.cpp">
+    <ClCompile Include="tests\test_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="tests\Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\benchmark.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ValueTypes\Value.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="tests\test.json" />
+    <None Include="tests\test_edge_cases.json" />
+    <None Include="tests\test_invalid.json" />
   </ItemGroup>
 </Project>
