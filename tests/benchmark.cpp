@@ -78,8 +78,8 @@ int main() {
     std::cout << "=== JSON Parser Benchmark ===" << std::endl;
     
     // Benchmark files
-    benchmarkFile("test.json", 5000);
-    benchmarkFile("test_edge_cases.json", 3000);
+    benchmarkFile("tests/test.json", 5000);
+    benchmarkFile("tests/test_edge_cases.json", 3000);
     
     // Benchmark simple strings
     benchmarkString("{\"key\": \"value\"}", "simple object", 50000);

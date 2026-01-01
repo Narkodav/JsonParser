@@ -7,21 +7,14 @@
 #include <algorithm>
 #include <fstream>
 
-#include "MappedFile.h"
-
-#include "Document.h"
-
-#include "ValueTypes/Array.h"
-#include "ValueTypes/Bool.h"
-#include "ValueTypes/Null.h"
-#include "ValueTypes/Number.h"
-#include "ValueTypes/Object.h"
-#include "ValueTypes/String.h"
+//#include "MappedFile.h"
 
 #include "SIMDUtils.h"
 
-namespace Json
+namespace Json::Detail
 {
+	class Value;
+
 	class Parser
 	{
 	public:
@@ -370,7 +363,7 @@ namespace Json
 		template<typename Container>
 		static inline size_t skipWhitespace(const Container& input, size_t i) {
 #ifdef HAS_AVX2
-			return skipWhitespaceSIMD32(input, i);
+			return skipWhitespaceSIMD16(input, i);
 #elif defined(HAS_SSE2)
 			return skipWhitespaceSIMD16(input, i);
 #else 
@@ -379,7 +372,7 @@ namespace Json
 		}
 
 		template<typename Container>
-		static inline std::unique_ptr<Value> parseNumber(Container& input, size_t& i)
+		static inline Value parseNumber(Container& input, size_t& i)
 		{
 			std::string string;
 			char c;
@@ -392,17 +385,28 @@ namespace Json
 					|| whitespaceCharacters[3] == c
 					|| c == valueSeparator || c == endObject
 					|| c == endArray || c == commentStart)
-					return std::make_unique<Number>(std::stod(string));
+					return Value(std::stod(string));
 				string.push_back(c);
 			}
-			return std::make_unique<Number>(std::stod(string));
+			return Value(std::stod(string));
 		}
 
 		template<typename Container>
 		static inline std::string parseString(Container& input, size_t& i)
 		{
-			std::string string;
 			++i;
+			size_t size = 0;
+
+			size_t end = i;
+			for (; end < input.size(); ++end, ++size) {
+				if (input[end] == stringEnd) break;
+				if (input[end] == escapedCharStart) ++end;
+			}
+			if (end >= input.size()) throw std::runtime_error("Invalid string syntax");
+			
+			std::string string;
+			string.reserve(size);
+			
 			char c;
 			for (; i < input.size(); ++i)
 			{
@@ -420,7 +424,7 @@ namespace Json
 		}
 
 		template<typename Container>
-		static inline std::unique_ptr<Value> parseBoolTrue(Container& input, size_t& i)
+		static inline Value parseBoolTrue(Container& input, size_t& i)
 		{
 			++i;
 			for (size_t j = 1; j < trueLiteral.size() && i < input.size(); ++j, ++i) {
@@ -428,11 +432,11 @@ namespace Json
 					throw std::runtime_error("Invalid bool true literal");
 				}
 			}
-			return std::make_unique<Bool>(true);
+			return Value(true);
 		}
 
 		template<typename Container>
-		static inline std::unique_ptr<Value> parseBoolFalse(Container& input, size_t& i)
+		static inline Value parseBoolFalse(Container& input, size_t& i)
 		{
 			++i;
 			for (size_t j = 1; j < falseLiteral.size() && i < input.size(); ++j, ++i) {
@@ -440,11 +444,11 @@ namespace Json
 					throw std::runtime_error("Invalid bool false literal");
 				}
 			}
-			return std::make_unique<Bool>(false);
+			return Value(false);
 		}
 
 		template<typename Container>
-		static inline std::unique_ptr<Value> parseNull(Container& input, size_t& i)
+		static inline Value parseNull(Container& input, size_t& i)
 		{
 			++i;
 			for (size_t j = 1; j < nullLiteral.size() && i < input.size(); ++j, ++i) {
@@ -452,22 +456,23 @@ namespace Json
 					throw std::runtime_error("Invalid null literal");
 				}
 			}
-			return std::make_unique<Null>();
+			return Value();
 		}
 
 		template<typename Container>
-		static std::unique_ptr<Value> parseArray(Container& input, size_t& i)
+		static Value parseArray(Container& input, size_t& i)
 		{
-			std::unique_ptr<Array> array = std::make_unique<Array>();
+			Value value = Value::array();
+			auto& array = value.asArray();
 			for (; i < input.size();)
 			{
 				i = skipWhitespace(input, ++i);
 				if (input[i] == endArray)
 				{
 					++i;
-					return array;
+					return value;
 				}
-				array->m_values.emplace_back(std::move(parseValue(input, i)));
+				array.emplace_back(std::move(parseValue(input, i)));
 				i = skipWhitespace(input, i);
 				if (i == input.size())
 					throw std::runtime_error("Endless array");
@@ -476,7 +481,7 @@ namespace Json
 					if (input[i] == endArray)
 					{
 						++i;
-						return array;
+						return value;
 					}
 					else throw std::runtime_error("No value separator after array value");
 				}
@@ -485,9 +490,10 @@ namespace Json
 		}
 
 		template<typename Container>
-		static std::unique_ptr<Value> parseObject(Container& input, size_t& i)
+		static Value parseObject(Container& input, size_t& i)
 		{
-			std::unique_ptr<Object> object = std::make_unique<Object>();
+			Value value = Value::object();
+			auto& object = value.asObject();
 			char c;
 			for (; i < input.size();)
 			{			
@@ -495,7 +501,7 @@ namespace Json
 				c = input[i];
 				if (c == stringStart) {
 					std::string name = parseString(input, i);
-					if (object->m_values.find(name) != object->m_values.end())
+					if (object.find(name) != object.end())
 						throw std::runtime_error(std::string("Duplicate key: ") + name);
 					i = skipWhitespace(input, i);
 					if (i == input.size())
@@ -504,7 +510,7 @@ namespace Json
 						throw std::runtime_error("No name separator after object key");
 
 					i = skipWhitespace(input, ++i);
-					object->m_values.emplace(
+					object.emplace(
 						std::move(name), std::move(parseValue(input, i)));
 					i = skipWhitespace(input, i);
 					if (i == input.size())
@@ -514,7 +520,7 @@ namespace Json
 						if (input[i] == endObject)
 						{
 							++i;
-							return object;
+							return value;
 						}
 						else throw std::runtime_error("No value separator after object value");
 					}
@@ -522,7 +528,7 @@ namespace Json
 				else if (c == endObject)
 				{
 					++i;
-					return object;
+					return value;
 				}
 				else {
 					throw std::runtime_error("Invalid object syntax: " + std::to_string(c));
@@ -532,50 +538,48 @@ namespace Json
 		};
 
 		template<typename Container>
-		static std::unique_ptr<Value> parseValue(Container& input, size_t& i)
+		static Value parseValue(Container& input, size_t& i)
 		{
 			char c = input[i];
-			if (c == beginObject) {
+			switch (c) {
+			case beginObject:
 				return parseObject(input, i);
-			}
-			else if (c == beginArray) {
+			case beginArray:
 				return parseArray(input, i);
-			}
-			else if (c == stringStart) {
-				return std::make_unique<String>(parseString(input, i));
-			}
-			else if (c == trueLiteral[0]) {
+			case stringStart:
+				return Value(parseString(input, i));
+			case trueLiteral[0]:
 				return parseBoolTrue(input, i);
-			}
-			else if (c == falseLiteral[0]) {
+			case falseLiteral[0]:
 				return parseBoolFalse(input, i);
-			}
-			else if (c == nullLiteral[0]) {
+			case nullLiteral[0]:
 				return parseNull(input, i);
+			default:
+				if (c == numberStartCharacters[11]
+					|| c == numberStartCharacters[10]
+					|| (c >= numberStartCharacters[0]
+						&& c <= numberStartCharacters[9]))
+					return parseNumber(input, i);
+				else {
+					throw std::runtime_error(std::string("Invalid value syntax: ") + c);
+				}
+				break;
 			}
-			else if (c == numberStartCharacters[11]
-				|| c == numberStartCharacters[10]
-				|| (c >= numberStartCharacters[0]
-					&& c <= numberStartCharacters[9])) {
-				return parseNumber(input, i);
-			}
-			else {
-				throw std::runtime_error(std::string("Invalid value syntax: ") + c);
-			}
+			return Value();
 		}
 
 	public:
 		template<typename Container>
-		static Document parse(Container& input)
+		static Value parse(Container& input)
 		{
-			Document document;
+			Value document = Value::array();
 			try {
 				for (size_t i = 0; i < input.size();)
 				{
 					i = skipWhitespace(input, i);
 					if (i >= input.size())
 						break;
-					document.m_roots.emplace_back(std::move(parseValue(input, i)));
+					document.pushBack(std::move(parseValue(input, i)));
 				}
 			}
 			catch (const std::exception& e) {
@@ -583,12 +587,19 @@ namespace Json
 			}
 			return document;
 		}
+
+		//static Value parseFile(const std::string& filename) {
+		//	std::fstream file(filename.c_str(), std::ios::in | std::ios::binary);
+		//	if (!file)
+		//		throw std::runtime_error("File not found: " + filename);
+		//	return parse(file);
+		//}
 	
-		static Document parseFile(const std::string& filename) {
-			MappedFile file(filename.c_str());
-			if (!file.isMapped())
-				throw std::runtime_error("File not found: " + filename);
-			return parse(file);
-		}
+		//static Value parseFile(const std::string& filename) {
+		//	MappedFile file(filename.c_str());
+		//	if (!file.isMapped())
+		//		throw std::runtime_error("File not found: " + filename);
+		//	return parse(file);
+		//}
 	};
 }

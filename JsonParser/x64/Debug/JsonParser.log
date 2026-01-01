@@ -1,0 +1,2 @@
+﻿  Main.cpp
+E:\unik\C_code\libraries\JsonParser\include\JsonParser\Value.h(329,1): error C4716: 'Json::Value::fromFile': must return a value

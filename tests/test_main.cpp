@@ -42,9 +42,9 @@ void testString(const std::string& json, const std::string& testName, bool shoul
 int main() {
 	std::cout << "=== JSON Parser Tests ===" << std::endl;
 	
-	testFile("test.json", true);
-	testFile("test_edge_cases.json", true);
-	testFile("test_invalid.json", false);
+	testFile("tests/test.json", true);
+	testFile("tests/test_edge_cases.json", true);
+	testFile("tests/test_invalid.json", false);
 	
 	testString("{\"key\": \"value\"}", "simple object");
 	testString("[1, 2, 3]", "simple array");
