@@ -7,10 +7,12 @@
 #include <stdexcept>
 #include <string_view>
 
-#include "Parser.h"
+#include "ContainerParser.h"
+#include "StreamParser.h"
 
 namespace Json
 {
+
 	class Value
 	{
 	public:
@@ -323,14 +325,41 @@ namespace Json
 		bool isString() const { return m_type == Type::String; }
 		bool isArray() const { return m_type == Type::Array; }
 		bool isObject() const { return m_type == Type::Object; }
-
-		static Value fromFile(const std::string& filename) {
-			return Detail::Parser::parseFile(filename);
+		
+		static Value parse(std::string_view input) {
+			return Detail::ContainerParser::parse(input);
 		}
 
-		template<typename Container>
-		static Value fromString(Container& input) {
-			return Detail::Parser::parse(input);
+		template<Detail::Container C>
+		static Value parse(C& input) {
+			return Detail::ContainerParser::parse(input);
+		}
+
+		template<Detail::Stream S>
+		static Value parse(S& input) {
+			return Detail::StreamParser::parse(input);
+		}
+
+		static Value fromFile(std::string_view path) {
+			std::ifstream file(path.data(), std::ios::in);
+			return Detail::StreamParser::parse(file);
+		}
+
+		bool operator==(const Value& other) const {
+			if (m_type != other.m_type) return false;
+			switch (m_type) {
+			case Type::Array:
+				return *std::get<std::vector<Value>*>(m_value)
+					== *std::get<std::vector<Value>*>(other.m_value);
+			case Type::Object:
+				return *std::get<std::unordered_map<std::string, Value>*>(m_value)
+					== *std::get<std::unordered_map<std::string, Value>*>(other.m_value);
+			case Type::String:
+				return *std::get<std::string*>(m_value)
+					== *std::get<std::string*>(other.m_value);
+			default:
+				return m_value == other.m_value;
+			};			
 		}
 	};
 }

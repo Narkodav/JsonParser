@@ -1,2 +1,4 @@
 ﻿  Main.cpp
-E:\unik\C_code\libraries\JsonParser\include\JsonParser\Value.h(329,1): error C4716: 'Json::Value::fromFile': must return a value
+  JsonParser.vcxproj -> E:\unik\C_code\libraries\JsonParser\x64\Debug\JsonParser.exe
+  "pwsh.exe" не является внутренней или внешней
+  командой, исполняемой программой или пакетным файлом.

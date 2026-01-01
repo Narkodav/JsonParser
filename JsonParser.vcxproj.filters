@@ -36,16 +36,19 @@
     <ClInclude Include="ValueTypes\Null.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\JsonParser\MappedFile.h">
+    <ClInclude Include="include\JsonParser\Utils\MappedFile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\JsonParser\Parser.h">
+    <ClInclude Include="include\JsonParser\ContainerParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\JsonParser\SIMDUtils.h">
+    <ClInclude Include="include\JsonParser\Utils\SIMDUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\JsonParser\Value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\StreamParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

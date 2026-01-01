@@ -137,10 +137,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="include\JsonParser\MappedFile.h" />
-    <ClInclude Include="include\JsonParser\Parser.h" />
-    <ClInclude Include="include\JsonParser\SIMDUtils.h" />
+    <ClInclude Include="include\JsonParser\Utils\MappedFile.h" />
+    <ClInclude Include="include\JsonParser\ContainerParser.h" />
+    <ClInclude Include="include\JsonParser\Utils\SIMDUtils.h" />
     <ClInclude Include="include\JsonParser\Value.h" />
+    <ClInclude Include="include\JsonParser\StreamParser.h" />
     <ClInclude Include="ValueTypes\Null.h" />
     <ClInclude Include="ValueTypes\String.h" />
     <ClInclude Include="ValueTypes\Array.h" />
