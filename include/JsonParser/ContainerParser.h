@@ -8,18 +8,11 @@
 #include <fstream>
 
 #include "Utils/SIMDUtils.h"
+#include "Concepts.h"
 
-namespace Json {
-	class Value;
-}
-
-namespace Json::Detail
+namespace Json
 {
-	template<typename T>
-	concept Container = requires(T & t) {
-		t.size();
-		t[0];
-	};
+	class Value;
 
 	class ContainerParser
 	{
@@ -351,19 +344,28 @@ namespace Json::Detail
 #endif
 		}
 
-		static inline bool isNumberEnd(char c) {
-			return isWhitespace(c) || c == valueSeparator || c == endObject || c == endArray || c == commentStart;
+		static inline bool isNumber(char c) {
+			return (c >= '0' && c <= '9') || c == '+' || c == '-' || c == 'e' || c == 'E' || c == decimalSeparator;			
 		}
 
 		template<Container C>
 		static inline Value parseNumber(C& input, size_t& i) {
 			std::string string;
+			bool isFloat = false;
+
 			for (; i < input.size(); ++i) {
-				char c = input[i];
-				if (isNumberEnd(c)) return Value(std::stod(string));
+				char c = input[i];				
+				if (!isNumber(c)) break;
+				if (c == decimalSeparator || c == 'e' || c == 'E') isFloat = true;
 				string.push_back(c);
 			}
-			return Value(std::stod(string));
+
+			if (isFloat) {
+				return Value(std::stod(string));
+			}
+			else {
+				return Value(std::stoi(string));
+			}
 		}
 
 		template<Container C>
@@ -477,16 +479,16 @@ namespace Json::Detail
 
 	public:
 		template<Container C>
-		static Value parse(C& input)
+		static std::vector<Value> parse(C& input)
 		{
-			Value document = Value::array();
+			std::vector<Value> document;
 			try {
 				for (size_t i = 0; i < input.size();)
 				{
 					i = skipWhitespace(input, i);
 					if (i >= input.size())
 						break;
-					document.pushBack(std::move(parseValue(input, i)));
+					document.push_back(std::move(parseValue(input, i)));
 				}
 			}
 			catch (const std::exception& e) {

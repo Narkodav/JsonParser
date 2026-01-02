@@ -9,6 +9,8 @@
 
 #include "ContainerParser.h"
 #include "StreamParser.h"
+#include "StrictContainerParser.h"
+#include "StrictStreamParser.h"
 
 namespace Json
 {
@@ -326,23 +328,25 @@ namespace Json
 		bool isArray() const { return m_type == Type::Array; }
 		bool isObject() const { return m_type == Type::Object; }
 		
-		static Value parse(std::string_view input) {
-			return Detail::ContainerParser::parse(input);
+		template<typename Parser = ContainerParser>
+		static auto parse(std::string_view input) {
+			return Parser::parse(input);
 		}
 
-		template<Detail::Container C>
-		static Value parse(C& input) {
-			return Detail::ContainerParser::parse(input);
+		template<typename Parser = ContainerParser, Container C>
+		static auto parse(C& input) {
+			return Parser::parse(input);
 		}
 
-		template<Detail::Stream S>
-		static Value parse(S& input) {
-			return Detail::StreamParser::parse(input);
+		template<typename Parser = StreamParser, Stream S>
+		static auto parse(S& input) {
+			return Parser::parse(input);
 		}
 
-		static Value fromFile(std::string_view path) {
+		template<typename Parser = StreamParser>
+		static auto fromFile(std::string_view path) {
 			std::ifstream file(path.data(), std::ios::in);
-			return Detail::StreamParser::parse(file);
+			return Parser::parse(file);
 		}
 
 		bool operator==(const Value& other) const {
@@ -357,9 +361,12 @@ namespace Json
 			case Type::String:
 				return *std::get<std::string*>(m_value)
 					== *std::get<std::string*>(other.m_value);
+			case Type::Number:
+				return std::abs(std::get<double>(m_value) - std::get<double>(other.m_value))
+					< std::numeric_limits<double>::epsilon();
 			default:
 				return m_value == other.m_value;
-			};			
+			};
 		}
 	};
 }

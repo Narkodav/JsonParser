@@ -51,6 +51,15 @@
     <ClInclude Include="include\JsonParser\StreamParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\JsonParser\StrictContainerParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\StrictStreamParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\JsonParser\Concepts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tests\Main.cpp">

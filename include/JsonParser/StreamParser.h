@@ -7,17 +7,11 @@
 #include <algorithm>
 #include <fstream>
 
-namespace Json {
-	class Value;
-}
+#include "Concepts.h"
 
-namespace Json::Detail
+namespace Json
 {
-	template<typename T>
-	concept Stream = requires(T & t, char c) {
-		t.get(c);
-		t.eof();
-	};
+	class Value;
 
 	class StreamParser
 	{
@@ -124,12 +118,20 @@ namespace Json::Detail
 		template<Stream S>
 		static inline Value parseNumber(S& input, char& currentChar) {
 			std::string string;
+			bool isFloat = false;
+			
 			do {
 				string.push_back(currentChar);
+				if (currentChar == decimalSeparator || currentChar == 'e' || currentChar == 'E') isFloat = true;
 				if (!input.get(currentChar)) break;
 			} while ((currentChar >= '0' && currentChar <= '9') || currentChar == '+' || currentChar == '-' || 
 					 currentChar == 'e' || currentChar == 'E' || currentChar == decimalSeparator);
-			return Value(std::stod(string));
+			
+			if (isFloat) {
+				return Value(std::stod(string));
+			} else {
+				return Value(std::stoi(string));
+			}
 		}
 
 		template<Stream S>
@@ -232,14 +234,14 @@ namespace Json::Detail
 
 	public:
 		template<Stream S>
-		static Value parse(S& input) {
-			Value document = Value::array();
+		static std::vector<Value> parse(S& input) {
+			std::vector<Value> document;
 			char currentChar;
 			try {
 				while (input.get(currentChar)) {
 					skipWhitespace(input, currentChar);
 					if (input.eof()) break;
-					document.pushBack(parseValue(input, currentChar));
+					document.push_back(parseValue(input, currentChar));
 				}
 			} catch (const std::exception& e) {
 				throw std::runtime_error(std::string("JSON parsing failed: ") + e.what());
