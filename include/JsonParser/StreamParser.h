@@ -7,12 +7,12 @@
 #include <algorithm>
 #include <fstream>
 
-#include "Concepts.h"
+#include "JsonParser/Utils/SIMDUtils.h"
+#include "JsonParser/Concepts.h"
 
 namespace Json
 {
-	class Value;
-
+	template<typename Value>
 	class StreamParser
 	{
 	public:
@@ -81,7 +81,7 @@ namespace Json
 		static inline void skipComment(S& input, char& currentChar) {
 			if (!input.get(currentChar)) throw std::runtime_error("Invalid comment syntax");
 			if (currentChar == lineComment) {
-				while (input.get(currentChar) && currentChar != '\n');
+				while (input.get(currentChar) && currentChar != '\n')
 				{
 					input.get(currentChar);
 					return;

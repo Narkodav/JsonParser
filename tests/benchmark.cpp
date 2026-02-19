@@ -1,4 +1,4 @@
-#include "JsonParser/Parser.h"
+#include "JsonParser/Value.h"
 #include <iostream>
 #include <fstream>
 #include <chrono>
@@ -24,9 +24,9 @@ void benchmarkFile(const std::string& filename, int iterations = 10000) {
     
     for (int i = 0; i < iterations; ++i) {
         try {
-            auto doc = Json::Parser::parseFile(filename);
+            auto doc = Json::Value::fromFile(filename);
             // Prevent optimization from removing the parsing
-            volatile size_t size = doc.roots().size();
+            volatile size_t size = doc.size();
             (void)size;
         } catch (const std::exception& e) {
             std::cout << "Parse error on iteration " << i << ": " << e.what() << std::endl;
@@ -54,8 +54,8 @@ void benchmarkString(const std::string& json, const std::string& name, int itera
     
     for (int i = 0; i < iterations; ++i) {
         try {
-            auto doc = Json::Parser::parse(json);
-            volatile size_t size = doc.roots().size();
+            auto doc = Json::Value::parse(json);
+            volatile size_t size = doc.size();
             (void)size;
         } catch (const std::exception& e) {
             std::cout << "Parse error: " << e.what() << std::endl;
@@ -101,79 +101,3 @@ int main() {
     std::cout << "Benchmark complete!" << std::endl;
     return 0;
 }
-
-//#include <chrono>
-//#include <iostream>
-//#include <string>
-//#include <vector>
-//#include "SIMDFunctions.h"
-//
-//int main() {
-//    // Create test data with lots of whitespace
-//    std::string data(1000000, ' ');
-//    for (size_t i = 0; i < data.size(); i += 2) {
-//        data[i] = 'X'; // Non-whitespace every 100 chars
-//    }
-//
-//    for (int i = 0; i < data.size(); ++i) {
-//        volatile size_t result = skipWhitespacesScalar(data, i);
-//        i = result;
-//    }
-//
-//#ifdef HAS_SSE2
-//    for (int i = 0; i < data.size(); ++i) {
-//        volatile size_t result = skipWhitespacesSIMD16(data, i);
-//        i = result;
-//    }
-//#endif
-//
-//#ifdef HAS_AVX2
-//    for (int i = 0; i < data.size(); ++i) {
-//        volatile size_t result = skipWhitespacesSIMD32(data, i);
-//        i = result;
-//    }
-//#endif
-//
-//    // Benchmark scalar
-//    auto start = std::chrono::high_resolution_clock::now();
-//    for (int i = 0; i < data.size(); ++i) {
-//        volatile size_t result = skipWhitespacesScalar(data, i);
-//        i = result;
-//    }
-//    auto end = std::chrono::high_resolution_clock::now();
-//    auto scalar_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-//
-//#ifdef HAS_SSE2
-//    // Benchmark SSE2
-//    start = std::chrono::high_resolution_clock::now();
-//    for (int i = 0; i < data.size(); ++i) {
-//        volatile size_t result = skipWhitespacesSIMD16(data, i);
-//        i = result;
-//    }
-//    end = std::chrono::high_resolution_clock::now();
-//    auto sse2_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-//#endif
-//
-//#ifdef HAS_AVX2
-//    // Benchmark AVX2
-//    start = std::chrono::high_resolution_clock::now();
-//    for (int i = 0; i < data.size(); ++i) {
-//        volatile size_t result = skipWhitespacesSIMD32(data, i);
-//        i = result;
-//    }
-//    end = std::chrono::high_resolution_clock::now();
-//    auto avx2_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-//#endif
-//
-//    std::cout << "Scalar: " << scalar_time.count() << " μs\n";
-//#ifdef HAS_SSE2
-//    std::cout << "SSE2:   " << sse2_time.count() << " μs (";
-//    std::cout << (double)scalar_time.count() / sse2_time.count() << "x faster)\n";
-//#endif
-//#ifdef HAS_AVX2
-//    std::cout << "AVX2:   " << avx2_time.count() << " μs (";
-//    std::cout << (double)scalar_time.count() / avx2_time.count() << "x faster)\n";
-//#endif
-//
-//    return 0;
-//}

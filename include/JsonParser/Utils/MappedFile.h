@@ -3,6 +3,7 @@
 #include <string_view>
 #include <stdexcept>
 #include <system_error>
+#include <utility>
 
 #ifdef _WIN32
 #include <windows.h>

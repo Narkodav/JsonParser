@@ -7,14 +7,14 @@
 #include <algorithm>
 #include <fstream>
 
-#include "Concepts.h"
+#include "JsonParser/Utils/SIMDUtils.h"
+#include "JsonParser/Concepts.h"
 
 namespace Json
 {
-	class Value;
-
 	// Parser that strictly follows RFC 7159/8259, no comments or trailing commas or multiple roots allowed
 	// Also no correctness checks for malformed json
+	template<typename Value>
 	class StrictStreamParser
 	{
 	public:

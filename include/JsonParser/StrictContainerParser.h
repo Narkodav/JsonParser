@@ -7,15 +7,15 @@
 #include <algorithm>
 #include <fstream>
 
-#include "Utils/SIMDUtils.h"
-#include "Concepts.h"
+#include "JsonParser/Utils/SIMDUtils.h"
+#include "JsonParser/Concepts.h"
 
 namespace Json
 {
-	class Value;
-
 	// Parser that strictly follows RFC 7159/8259, no comments or trailing commas or multiple roots allowed
 	// Also no correctness checks for malformed json
+
+	template<typename Value>
 	class StrictContainerParser
 	{
 	public:
@@ -238,8 +238,7 @@ namespace Json
 			throw std::runtime_error("Invalid string syntax");
 		}
 
-		template<Container C>
-		static inline Value parseLiteral(C& input, size_t& i, const std::string& literal, Value value)
+		static inline Value parseLiteral(size_t& i, const std::string& literal, Value value)
 		{
 			i += literal.size();
 			return value;
@@ -287,10 +286,10 @@ namespace Json
 			case beginObject: return parseObject(input, i);
 			case beginArray: return parseArray(input, i);
 			case stringStart: return Value(parseString(input, i));
-			case 't': return parseLiteral(input, i, trueLiteral, Value(true));
-			case 'f': return parseLiteral(input, i, falseLiteral, Value(false));
-			case 'n': return parseLiteral(input, i, nullLiteral, Value(nullptr));
-			default: parseNumber(input, i);
+			case 't': return parseLiteral(i, trueLiteral, Value(true));
+			case 'f': return parseLiteral(i, falseLiteral, Value(false));
+			case 'n': return parseLiteral(i, nullLiteral, Value(nullptr));
+			default: return parseNumber(input, i);
 			}
 		}
 

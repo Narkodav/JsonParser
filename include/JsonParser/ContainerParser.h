@@ -7,13 +7,12 @@
 #include <algorithm>
 #include <fstream>
 
-#include "Utils/SIMDUtils.h"
-#include "Concepts.h"
+#include "JsonParser/Utils/SIMDUtils.h"
+#include "JsonParser/Concepts.h"
 
 namespace Json
 {
-	class Value;
-
+	template<typename Value>
 	class ContainerParser
 	{
 	public:
