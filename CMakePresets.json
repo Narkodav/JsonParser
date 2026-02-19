@@ -1,0 +1,83 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "clang-debug",
+            "displayName": "Clang Debug",
+            "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build/clang-debug",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "C:/Users/user/.utils/llvm-mingw/bin/clang.exe",
+                "CMAKE_CXX_COMPILER": "C:/Users/user/.utils/llvm-mingw/bin/clang++.exe",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/clang-debug"
+            }
+        },
+        {
+            "name": "clang-release",
+            "displayName": "Clang Release",
+            "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build/clang-release",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "C:/Users/user/.utils/llvm-mingw/bin/clang.exe",
+                "CMAKE_CXX_COMPILER": "C:/Users/user/.utils/llvm-mingw/bin/clang++.exe",
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/clang-release"
+            }
+        },
+
+        {
+            "name": "mingw-debug",
+            "displayName": "MinGW Debug",
+            "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build/mingw-debug",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "A:/compilers/mingw64/bin/gcc.exe",
+                "CMAKE_CXX_COMPILER": "A:/compilers/mingw64/bin/g++.exe",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/mingw-debug"
+            }
+        },
+        {
+            "name": "mingw-release",
+            "displayName": "MinGW Release",
+            "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build/mingw-release",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "A:/compilers/mingw64/bin/gcc.exe",
+                "CMAKE_CXX_COMPILER": "A:/compilers/mingw64/bin/g++.exe",
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/mingw-release"
+            }
+        },
+        {
+            "name": "msvc-debug",
+            "displayName": "MSVC Debug (Ninja)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-debug",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/msvc-debug"
+            }
+        },
+        {
+            "name": "msvc-release",
+            "displayName": "MSVC Release (Ninja)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-release",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/msvc-release"
+            }
+        }
+    ]
+}

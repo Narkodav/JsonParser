@@ -50,41 +50,33 @@ endif()
 # =========================
 # Installation
 # =========================
-include(CMakePackageConfigHelpers)
-
-# Install header files
-install(DIRECTORY include/ DESTINATION include)
-
-# Install target
-install(TARGETS JsonParser
+install(TARGETS ${PROJECT_NAME}
     EXPORT JsonParserTargets
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
     INCLUDES DESTINATION include
 )
 
-# Export targets for find_package
+install(DIRECTORY include/
+    DESTINATION include
+)
+
 install(EXPORT JsonParserTargets
     FILE JsonParserTargets.cmake
     NAMESPACE JsonParser::
     DESTINATION lib/cmake/JsonParser
 )
 
-# Generate version file
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/JsonParserConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/JsonParserConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/JsonParserConfig.cmake
+    INSTALL_DESTINATION lib/cmake/JsonParser
 )
 
-# Configure package file
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/JsonParserConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/JsonParserConfig.cmake"
-    @ONLY
-)
-
-# Install package configuration
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/JsonParserConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/JsonParserConfigVersion.cmake"
+    ${CMAKE_CURRENT_BINARY_DIR}/JsonParserConfig.cmake
     DESTINATION lib/cmake/JsonParser
 )

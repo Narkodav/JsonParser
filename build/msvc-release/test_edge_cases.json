@@ -1,0 +1,71 @@
+// Edge case tests
+{
+  "unicode": "Hello 世界 🌍",
+  "escapedChars": "Line 1\nLine 2\tTabbed\"Quoted\"",
+  "numbers": {
+    "zero": 0,
+    "negativeZero": -0,
+    "integer": 42,
+    "negativeInt": -42,
+    "decimal": 3.14159,
+    "negativeDecimal": -2.71828,
+    "scientific": 6.022e23,
+    "negativeScientific": -1.602e-19,
+    "scientificCaps": 2.998E8,
+    "fractionalScientific": 1.5e-10
+  },
+  "extremeNesting": {
+    "level1": {
+      "level2": {
+        "level3": {
+          "level4": {
+            "level5": ["deep", "array", {"deepObject": true}]
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Complex array test */
+[
+  1,
+  "string",
+  true,
+  false,
+  null,
+  [1, 2, [3, 4, [5]]],
+  {"nested": {"very": {"deep": "value"}}},
+  // Comment in array
+  42.5e-2
+]
+
+// Minimal valid JSON values
+42
+"standalone string"
+true
+false
+null
+[]
+{}
+
+/* Stress test with comments everywhere */
+{
+  // Start comment
+  "key1": /* inline */ "value1", // End comment
+  /* Multi
+     line
+     comment */ "key2": [
+    // Array comment
+    1, /* between values */ 2, 3
+  ],
+  "key3": { /* object comment */
+    "nested": true // nested comment
+  } /* closing comment */
+}
+
+// JSON with trailing commas (should be handled gracefully)
+{
+  "array": [1, 2, 3,],
+  "object": {"a": 1, "b": 2,}
+}

@@ -1,0 +1,49 @@
+[
+  [],
+  [ [],], //should parse
+  [ [] ],[],
+  [ [1], ],
+]
+
+{
+  // This is a test JSON file with comments
+  "name": "John Doe",
+  "age": 30,
+  "height": 1.75e2, // Scientific notation: 175.0
+  "isActive": true,
+  "spouse": null,
+  "scores": [95.5, 87, 92.3e-1], // Mixed numbers including scientific
+  "address": {
+    "street": "123 Main St",
+    "city": "Anytown",
+    "zipCode": "12345",
+    "coordinates": {
+      "lat": 40.7128,
+      "lng": -74.0060
+    }
+  },
+  /* Block comment
+     Multi-line test */
+  "hobbies": ["reading", "swimming", "coding"],
+  "metadata": {
+    "created": "2024-01-01",
+    "version": 1.2,
+    "active": false,
+    "tags": null
+  }
+}
+
+// Second JSON document (JSON Lines format)
+{"id": 1, "type": "user", "data": [1, 2, 3]}
+
+// Third document with edge cases
+{
+  "emptyString": "",
+  "negativeNumber": -42.5,
+  "largeNumber": 1.23e10,
+  "smallNumber": 5.67e-8,
+  "booleans": [true, false],
+  "nullValues": [null, null],
+  "nestedArrays": [[1, 2], [3, 4], []],
+  "mixedArray": ["text", 123, true, null, {"nested": "object"}]
+}

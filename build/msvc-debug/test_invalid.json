@@ -1,0 +1,43 @@
+// Invalid JSON test cases (should throw errors)
+
+// Duplicate keys
+{
+  "name": "first",
+  "name": "duplicate"
+}
+
+// Invalid numbers
+{
+  "badNumber1": 01,
+  "badNumber2": 1.,
+  "badNumber3": .5,
+  "badNumber4": 1.2.3
+}
+
+// Unclosed strings
+{
+  "unclosed": "this string never ends
+}
+
+// Invalid literals
+{
+  "badTrue": True,
+  "badFalse": FALSE,
+  "badNull": NULL
+}
+
+// Trailing commas
+{
+  "array": [1, 2, 3,],
+  "lastKey": "value",
+}
+
+// Missing quotes on keys
+{
+  unquoted: "value"
+}
+
+// Unterminated comment
+{
+  "key": "value" /* this comment never closes
+}

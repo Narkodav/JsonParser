@@ -1,0 +1,59 @@
+{
+  "name": "John Doe",
+  "age": 30,
+  "height": 175.5,
+  "isActive": true,
+  "spouse": null,
+  "scores": [95, 87, 92],
+  "address": {
+    "street": "123 Main St",
+    "city": "Anytown",
+    "zipCode": "12345",
+    "coordinates": {
+      "lat": 40.7128,
+      "lng": -74.0060
+    }
+  },
+  "hobbies": ["reading", "swimming", "coding"],
+  "metadata": {
+    "created": "2024-01-01",
+    "version": 1.2,
+    "active": false,
+    "tags": null
+  },
+  "numbers": {
+    "integer": 42,
+    "negative": -123,
+    "decimal": 3.14159,
+    "scientific": 1.23e10,
+    "negativeScientific": -5.67e-8,
+    "zero": 0
+  },
+  "strings": {
+    "empty": "",
+    "simple": "hello world",
+    "escaped": "Line 1\nLine 2\tTabbed",
+    "unicode": "Caf\u00e9",
+    "quotes": "She said \"Hello\""
+  },
+  "arrays": {
+    "empty": [],
+    "numbers": [1, 2, 3, 4, 5],
+    "strings": ["apple", "banana", "cherry"],
+    "mixed": ["text", 123, true, null],
+    "nested": [[1, 2], [3, 4], []]
+  },
+  "objects": {
+    "empty": {},
+    "simple": {"key": "value"},
+    "nested": {
+      "level1": {
+        "level2": {
+          "value": "deep"
+        }
+      }
+    }
+  },
+  "booleans": [true, false],
+  "nullValues": [null, null, null]
+}

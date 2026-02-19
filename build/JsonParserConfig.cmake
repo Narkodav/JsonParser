@@ -1,4 +1,0 @@
-
-
-include("${CMAKE_CURRENT_LIST_DIR}/JsonParserTargets.cmake")
-check_required_components(JsonParser)

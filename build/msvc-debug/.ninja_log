@@ -1,0 +1,4 @@
+# ninja log v5
+2	2434	7932478062167696	CMakeFiles/JsonParserBenchmark.dir/tests/benchmark.cpp.obj	f4d4da3bdd3b8fc9
+2434	2891	7932478066299623	JsonParserBenchmark.exe	2c90726ebab02a00
+2891	2959	0	CMakeFiles/install.util	c8e4b699e28752a3
