@@ -1,9 +1,9 @@
 # JsonParser Library
 
-A high-performance C++ JSON parser library with SIMD optimizations.
+A C++ JSON parser library with SIMD optimizations.
 
 ## Features
-- Fast JSON parsing with SIMD optimizations (AVX2/SSE2 when available)
+- JSON parsing with SIMD optimizations (AVX2/SSE2 when available)
 - Support for all JSON data types
 - Support for comments in JSON
 - Memory-mapped file support for efficient parsing of large files
