@@ -162,7 +162,7 @@ namespace Json
 		}
 
 		Value(const Value& other) {
-			switch (getType()) {
+			switch (other.getType()) {
 			case Type::Array:
 				m_value = new std::vector<Value>(*std::get<std::vector<Value>*>(other.m_value));
 				break;
