@@ -81,11 +81,9 @@ namespace Json
 		static inline void skipComment(S& input, char& currentChar) {
 			if (!input.get(currentChar)) throw std::runtime_error("Invalid comment syntax");
 			if (currentChar == lineComment) {
-				while (input.get(currentChar) && currentChar != '\n')
-				{
-					input.get(currentChar);
-					return;
-				}
+				while (input.get(currentChar) && currentChar != '\n');
+				input.get(currentChar);
+				return;
 			} else if (currentChar == blockCommentStart) {
 				char prev = currentChar;
 				while (input.get(currentChar)) {
