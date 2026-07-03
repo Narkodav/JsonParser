@@ -71,7 +71,7 @@ install(EXPORT JsonParserTargets
 include(CMakePackageConfigHelpers)
 
 configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/install/JsonParserConfig.cmake.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/JsonParserConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/JsonParserConfig.cmake
     INSTALL_DESTINATION lib/cmake/JsonParser
 )
