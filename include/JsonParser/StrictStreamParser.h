@@ -88,6 +88,8 @@ namespace Json
 			}
 		}
 
+
+
 		template<Stream S>
 		static inline Value parseNumber(S& input, char& currentChar) {
 			std::string string;
@@ -199,12 +201,13 @@ namespace Json
 	public:
 		template<Stream S>
 		static Value parse(S& input) {
+			if (!input.good()) throw std::runtime_error("JSON parsing failed: input stream in an invalid state");
 			Value value;
 			char currentChar;
 			try {
 				input.get(currentChar);
 				skipWhitespace(input, currentChar);
-				if (!input.eof()) value = parseValue(input, currentChar);
+				if (input.good()) value = parseValue(input, currentChar);
 			}
 			catch (const std::exception& e) {
 				throw std::runtime_error(std::string("JSON parsing failed: ") + e.what());

@@ -16,12 +16,24 @@
 #include "JsonParser/StreamParser.h"
 #include "JsonParser/StrictContainerParser.h"
 #include "JsonParser/StrictStreamParser.h"
-#include "JsonParser/SchemaParser.h"
 
 namespace Json
 {
     namespace Detail
     {
+        template <size_t N>
+        struct FixedString {
+            char data[N];
+
+            constexpr FixedString(const char (&str)[N]) {
+                for (size_t i = 0; i < N; ++i)
+                    data[i] = str[i];
+            }
+
+            constexpr operator std::string_view() const {
+                return {data, N - 1};
+            }
+        };
         template<auto T>
         struct EnumToTypeTrait : std::false_type {};
     }
@@ -581,79 +593,14 @@ namespace Json
 		template<typename Schema, typename T = Schema::ValueType>
 		T toStruct() const {
 			T result;
-			parseValue<Schema>(*this, result);
+			Schema::read(*this, result);
 			return result;
 		}
 
-	private:
 		template<typename Schema, typename T>
-		static void parseValue(const Value& json, T& val) {
-			if constexpr (StructSchemaConcept<Schema>) {
-				parseObject<Schema>(json, val);
-			}
-			else if constexpr (ArraySchemaConcept<Schema>) {
-				parseArray<Schema>(json, val);
-			}
-			else {
-				parsePrimitive<Schema>(json, val);
-			}
-		}
-
-		template<StructSchemaConcept Schema, typename T>
-		static void parseObject(const Value& json, T& val) {
-			if(!json.isObject()) throw std::runtime_error("Json Value has wrong type");
-			const auto& object = json.asObject();
-
-			Schema::visit(val, [&]<typename Member>(auto& field) {
-				auto it = object.find(Member::s_name);
-				if(it == object.end()) 
-					throw std::runtime_error(std::string("No value named ") + Member::s_name.data + " in Json");
-				parseValue<typename Member::ElementSchema>(it->second, field);
-			});
-		}
-
-		template<ArraySchemaConcept Schema, typename T>
-		static void parseArray(const Value& json, T& val) {
-			if(!json.isArray()) throw std::runtime_error("Json Value has wrong type");
-			const auto& array = json.asArray();
-
-			ContainerTraits<T>::resize(val, array.size());
-			for(size_t i = 0; i < array.size(); ++i) {
-				parseValue<typename Schema::ElementSchema>(array[i], ContainerTraits<T>::at(val, i));
-			}
-		}
-
-		template<PrimitiveSchemaConcept Schema, typename T>
-		static void parsePrimitive(const Value& json, T& val) {
-			switch(json.getType()) {
-				case Value::Type::String:
-					if constexpr (std::convertible_to<Value::String, T>) {
-						val = json.asString();
-					}
-					else throw std::runtime_error("Json is not convertible to String");
-					break;
-				case Value::Type::Bool:
-					if constexpr (std::convertible_to<bool, T>) {
-						val = json.asBool();
-					}
-					else throw std::runtime_error("Json is not convertible to Bool");
-					break;
-				case Value::Type::Integer:
-					if constexpr (std::convertible_to<int64_t, T>) {
-						val = json.asInteger();
-					}
-					else throw std::runtime_error("Json is not convertible to Integer");
-					break;
-				case Value::Type::Number:
-					if constexpr (std::convertible_to<double, T>) {
-						val = json.asNumber();
-					}
-					else throw std::runtime_error("Json is not convertible to Number");
-					break;
-				default:
-					throw std::runtime_error("Json Value has wrong type");
-					break;
-			}
+		Value& fromStruct(const T& s) {
+			Schema::write(*this, s);
+			return *this;
 		}
 	};
 

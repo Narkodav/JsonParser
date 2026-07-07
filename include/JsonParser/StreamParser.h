@@ -233,6 +233,7 @@ namespace Json
 	public:
 		template<Stream S>
 		static std::vector<Value> parse(S& input) {
+			if (!input.good()) throw std::runtime_error("JSON parsing failed: input stream in an invalid state");
 			std::vector<Value> document;
 			char currentChar;
 			try {

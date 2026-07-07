@@ -1,17 +1,19 @@
 #include "JsonParser/Value.h"
 #include "JsonParser/Utils/MappedFile.h"
+#include "JsonParser/SchemaParsing.h"
+
 #include <iostream>
-#define assert(x) if(!(x)) throw std::runtime_error("Assertion failed: " #x);
 #include <vector>
 #include <variant>
 #include <chrono>
 #include <string>
 #include <stdexcept>
 
-#include "JsonParser/SchemaParser.h"
+#define assert(x) if(!(x)) throw std::runtime_error("Assertion failed: " #x);
 
 int main() {
 
+	// Creating JSON values using initializer lists
 	{
 		Json::Value val = Json::ObjectList{
 			{"pi", 3.141},
@@ -30,26 +32,34 @@ int main() {
 			{"different", {"abc", 1, true}},
 		};
 		Json::Value val1 = Json::ObjectList{ {"name", "Niels"} };
-		std::string stringified = val.stringify();		
 
-		Json::Value other = Json::Value::parse(stringified)[0];		
-		std::cout << val.stringify();
-		std::cout << "\n\n-----" << std::endl;
-		std::cout << other.stringify();
+        // Stringify JSON to string
+        std::string stringified = val.stringify();        
+        std::cout << val.stringify() << "\n\n-----\n" << std::endl;
+        
+        // Parse from string
+        Json::Value other = Json::Value::parse(stringified)[0];        
+        std::cout << other.stringify() << std::endl;
 
+		// Value comparison
 		assert(val.asObject().size() == other.asObject().size());
-
 		assert(val == other);
 	}
 
-	std::vector<Json::Value> doc1;
-	std::vector<Json::Value> doc2;
+    // Reading from files
+    std::vector<Json::Value> doc1;
+    std::vector<Json::Value> doc2;
 	try
 	{
-		doc1 = Json::Value::fromFile("tests/test.json");
-		MappedFile file("tests/test.json");
-		doc2 = Json::Value::parse(file);
-		assert(doc1 == doc2);
+        // Parse JSON file
+        doc1 = Json::Value::fromFile("tests/test.json");
+
+        // Parse using memory-mapped file for better performance
+        MappedFile file("tests/test.json");
+        doc2 = Json::Value::parse(file);
+
+        // Verify both parsing methods produce the same result
+        assert(doc1 == doc2);
 
 		for(size_t i = 0; i < doc1.size(); ++i)
 		{
@@ -66,25 +76,22 @@ int main() {
 		std::cerr << e.what() << std::endl;
 	}
 
-	Json::Value val = Json::Value::fromFileStrict("tests/standard_compliant.json");
+    // Strict parsing (enforces complete JSON compliance, use for better performance)
+    Json::Value val = Json::Value::fromFileStrict("tests/standard_compliant.json");
+    std::cout << "val: " << val.stringify() << std::endl;
 
-	std::cout << "val: " << val.stringify() << std::endl;
+    // Creating error response with timestamps
+    Json::Value errorResponse = Json::ObjectList{
+        {"error", Json::ObjectList{
+            {"code", 404},
+            {"message", "Resource not found"},
+            {"method", "GET"}
+        }},
+        {"timestamp", std::chrono::system_clock::now().time_since_epoch().count()}
+    };
 
-	Json::Value errorResponse = Json::ObjectList{
-		{"error", Json::ObjectList{
-			{"code", 404},
-			{"message", "Resource not found"},
-			//{"path", req.getUri()},
-			{"method", "GET"}
-		}
-		},
-		{"timestamp", std::chrono::system_clock::now().time_since_epoch().count()}
-	};
-
+	// Type checking examples
 	Json::Value f = std::chrono::system_clock::now().time_since_epoch().count();
-
-	auto data = std::chrono::system_clock::now().time_since_epoch().count();
-
 	Json::Value f1 = 123.03;
 	Json::Value f2 = 123;
 	Json::Value f3 = true;
@@ -93,25 +100,25 @@ int main() {
 	assert(f2.isInteger());
 	assert(f3.isBool());
 
-	std::string str = "asdsdf";
-
+    // String values
+    std::string str = "asdsdf";
 	Json::Value s1 = Json::ObjectList{ {"abc", str } };
 
-
+	// Schema based struct conversion
     struct Vec3 {
         float x, y, z;
 		using Schema = Json::StructSchema<
-        Json::MemberSchema<"x", &Vec3::x, Json::PrimitiveSchema>,
-        Json::MemberSchema<"y", &Vec3::y, Json::PrimitiveSchema>,
-        Json::MemberSchema<"z", &Vec3::z, Json::PrimitiveSchema>
+        Json::StructMemberSchema<"x", &Vec3::x, Json::PrimitiveSchema>,
+        Json::StructMemberSchema<"y", &Vec3::y, Json::PrimitiveSchema>,
+        Json::StructMemberSchema<"z", &Vec3::z, Json::PrimitiveSchema>
     >;
     };
 
-    using ArraySchema = Json::ArraySchema<Json::PrimitiveSchema>;
-    using NestedArraySchema = Json::ArraySchema<ArraySchema>;
+    using ArraySchema = Json::ContainerSchema<Json::PrimitiveSchema>;
+    using NestedArraySchema = Json::ContainerSchema<ArraySchema>;
 
-    using VecArraySchema = Json::ArraySchema<Vec3::Schema>;
-    using NestedVecArraySchema = Json::ArraySchema<VecArraySchema>;
+    using VecArraySchema = Json::ContainerSchema<Vec3::Schema>;
+    using NestedVecArraySchema = Json::ContainerSchema<VecArraySchema>;
 
     struct TestStruct {
         Vec3 vec;
@@ -121,15 +128,16 @@ int main() {
         std::vector<std::vector<Vec3>> a4;
         int val;
 		using Schema = Json::StructSchema<
-			Json::MemberSchema<"vec", &TestStruct::vec, Vec3::Schema>,
-			Json::MemberSchema<"a1", &TestStruct::a1, ArraySchema>,
-			Json::MemberSchema<"a2", &TestStruct::a2, NestedArraySchema>,
-			Json::MemberSchema<"a3", &TestStruct::a3, VecArraySchema>,
-			Json::MemberSchema<"a4", &TestStruct::a4, NestedVecArraySchema>,
-			Json::MemberSchema<"val", &TestStruct::val, Json::PrimitiveSchema>
+			Json::StructMemberSchema<"vec", &TestStruct::vec, Vec3::Schema>,
+			Json::StructMemberSchema<"a1", &TestStruct::a1, ArraySchema>,
+			Json::StructMemberSchema<"a2", &TestStruct::a2, NestedArraySchema>,
+			Json::StructMemberSchema<"a3", &TestStruct::a3, VecArraySchema>,
+			Json::StructMemberSchema<"a4", &TestStruct::a4, NestedVecArraySchema>,
+			Json::StructMemberSchema<"val", &TestStruct::val, Json::PrimitiveSchema>
     >;
     };
 
+	// Construct test Value
 	Json::Value val2 = Json::ObjectList{
 		{ "vec", Json::ObjectList{
 			{ "x", 1.0f },
@@ -178,7 +186,7 @@ int main() {
 		}
 	};
 
-	TestStruct s = val.toStruct<TestStruct::Schema, TestStruct>();
+	TestStruct s = val2.toStruct<TestStruct::Schema, TestStruct>();
 
 	std::cout << "x: " << s.vec.x << ", y: " << s.vec.y << ", z: " << s.vec.z << std::endl;
 	for(size_t i = 0; i < s.a1.size(); ++i) std::cout << s.a1[i] << " ";
@@ -204,6 +212,11 @@ int main() {
 	std::cout << std::endl;
 	
 	std::cout << "val: " << s.val << std::endl;
+
+	// Write Struct to a Value
+	Json::Value val3;
+	val3.fromStruct<TestStruct::Schema>(s);
+	assert(val2 == val3);
 
 	return 0;
 }
