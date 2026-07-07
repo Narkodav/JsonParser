@@ -592,14 +592,12 @@ namespace Json
 
 		template<typename Schema, typename T = Schema::ValueType>
 		T toStruct() const {
-			T result;
-			Schema::read(*this, result);
-			return result;
+			return Schema::template read<T>(*this);
 		}
 
 		template<typename Schema, typename T>
 		Value& fromStruct(const T& s) {
-			Schema::write(*this, s);
+			*this = Schema::write(s);
 			return *this;
 		}
 	};

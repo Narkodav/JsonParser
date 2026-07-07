@@ -113,7 +113,7 @@ Basic usage example:
 ```
 #include "JsonParser/Value.h"
 #include "JsonParser/Utils/MappedFile.h"
-#include "JsonParser/SchemaParsing.h"
+#include "JsonParser/Schemas.h"
 
 #include <iostream>
 #include <vector>
@@ -221,10 +221,20 @@ int main() {
     struct Vec3 {
         float x, y, z;
 		using Schema = Json::StructSchema<
-        Json::StructMemberSchema<"x", &Vec3::x, Json::PrimitiveSchema>,
-        Json::StructMemberSchema<"y", &Vec3::y, Json::PrimitiveSchema>,
-        Json::StructMemberSchema<"z", &Vec3::z, Json::PrimitiveSchema>
-    >;
+			Json::StructMemberSchema<&Vec3::x, "x", Json::PrimitiveSchema>,
+			Json::StructMemberSchema<&Vec3::y, "y", Json::PrimitiveSchema>,
+			Json::StructMemberSchema<&Vec3::z, "z", Json::PrimitiveSchema>
+		>;
+
+		using SchemaConstruct = Json::ConstructorSchema<
+			Json::TypedSchema<float, "x", Json::PrimitiveSchema>,
+			Json::TypedSchema<float, "y", Json::PrimitiveSchema>,
+			Json::TypedSchema<float, "z", Json::PrimitiveSchema>
+		>;
+
+		bool operator==(const Vec3& other) const {
+			return x == other.x && y == other.y && z == other.z;
+		}
     };
 
     using ArraySchema = Json::ContainerSchema<Json::PrimitiveSchema>;
@@ -241,12 +251,12 @@ int main() {
         std::vector<std::vector<Vec3>> a4;
         int val;
 		using Schema = Json::StructSchema<
-			Json::StructMemberSchema<"vec", &TestStruct::vec, Vec3::Schema>,
-			Json::StructMemberSchema<"a1", &TestStruct::a1, ArraySchema>,
-			Json::StructMemberSchema<"a2", &TestStruct::a2, NestedArraySchema>,
-			Json::StructMemberSchema<"a3", &TestStruct::a3, VecArraySchema>,
-			Json::StructMemberSchema<"a4", &TestStruct::a4, NestedVecArraySchema>,
-			Json::StructMemberSchema<"val", &TestStruct::val, Json::PrimitiveSchema>
+			Json::StructMemberSchema<&TestStruct::vec, "vec", Vec3::Schema>,
+			Json::StructMemberSchema<&TestStruct::a1, "a1", ArraySchema>,
+			Json::StructMemberSchema<&TestStruct::a2, "a2", NestedArraySchema>,
+			Json::StructMemberSchema<&TestStruct::a3, "a3", VecArraySchema>,
+			Json::StructMemberSchema<&TestStruct::a4, "a4", NestedVecArraySchema>,
+			Json::StructMemberSchema<&TestStruct::val, "val", Json::PrimitiveSchema>
     >;
     };
 
@@ -330,6 +340,25 @@ int main() {
 	Json::Value val3;
 	val3.fromStruct<TestStruct::Schema>(s);
 	assert(val2 == val3);
+
+	Json::Value val4 = { 1, 2, 3 };
+	Json::Value val5 = Json::ObjectList{
+		{ "x", 1 },
+		{ "y", 2 },
+		{ "z", 3 },
+	};
+
+	// Constructor schema support
+	Vec3 val4V = val4.toStruct<Vec3::SchemaConstruct, Vec3>();
+	Vec3 val5V = val5.toStruct<Vec3::SchemaConstruct, Vec3>();
+
+	std::cout << "x: " << val4V.x << ", y: " << val4V.y << ", z: " << val4V.z << " ";
+	std::cout << std::endl;
+
+	std::cout << "x: " << val5V.x << ", y: " << val5V.y << ", z: " << val5V.z << " ";
+	std::cout << std::endl;
+
+	assert(val4V == val5V);
 
 	return 0;
 }

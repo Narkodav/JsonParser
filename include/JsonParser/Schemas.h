@@ -7,41 +7,31 @@
 
 namespace Json
 {
-    template<typename Schema, typename T>
-    concept ReadSchemaFor = requires(const Json::Value& json, T& value) {
-        { Schema::read(json, value) } -> std::same_as<void>;
-    };
-
-    template<typename Schema, typename T>
-    concept WriteSchemaFor = requires(Json::Value& json, const T& value) {
-        { Schema::write(json, value) } -> std::same_as<void>;
-    };
-
     struct PrimitiveSchema {
         template<typename T>
-        static void read(const Value& json, T& val) {
+        static T read(const Value& json) {
 			switch(json.getType()) {
 				case Value::Type::String:
 					if constexpr (std::convertible_to<Value::String, T>) {
-						val = json.asString();
+						return json.asString();
 					}
 					else throw std::runtime_error("Json is not convertible to String");
 					break;
 				case Value::Type::Bool:
 					if constexpr (std::convertible_to<bool, T>) {
-						val = json.asBool();
+						return json.asBool();
 					}
 					else throw std::runtime_error("Json is not convertible to Bool");
 					break;
 				case Value::Type::Integer:
 					if constexpr (std::convertible_to<int64_t, T>) {
-						val = json.asInteger();
+						return json.asInteger();
 					}
 					else throw std::runtime_error("Json is not convertible to Integer");
 					break;
 				case Value::Type::Number:
 					if constexpr (std::convertible_to<double, T>) {
-						val = json.asNumber();
+						return json.asNumber();
 					}
 					else throw std::runtime_error("Json is not convertible to Number");
 					break;
@@ -52,25 +42,29 @@ namespace Json
         }
 
         template<typename T>
-        static void write(Value& json, const T& val) {
-            json = val;
+        static Value write(const T& val) {
+            return val;
         }
     };
 
-    template<Detail::FixedString Name, auto Pointer, typename Schema>
-    struct StructMemberSchema {
+    template<Detail::FixedString Name, typename Schema>
+    struct NamedSchema {
         static constexpr auto s_name = Name;
+
+        template<typename T>
+		static auto read(const Value& json) {
+            return Schema::template read<T>(json);
+        }
+
+        template<typename T>
+		static Value write(const T& val) {
+            return Schema::write(val);
+        }
+    };
+
+    template<auto Pointer, Detail::FixedString Name, typename Schema>
+    struct StructMemberSchema : NamedSchema<Name, Schema> {
         static constexpr auto s_pointer = Pointer;
-
-		template<typename T>
-		static void read(const Value& json, T& val) requires ReadSchemaFor<Schema, T> {
-            Schema::read(json, val);
-        }
-
-		template<typename T>
-		static void write(Value& json, const T& val) requires WriteSchemaFor<Schema, T> {
-            Schema::write(json, val);
-        }
     };
 
     template<typename... MembersT>
@@ -85,32 +79,33 @@ namespace Json
         }
 
 		template<typename T>
-		static void read(const Value& json, T& val)  {
+		static T read(const Value& json)  {
 			if(!json.isObject()) throw std::runtime_error("Json Value has wrong type");
 			const auto& object = json.asObject();
-
-			visit(val, [&]<typename Member>(auto& field) {
+            T result;
+			visit(result, [&]<typename Member>(auto& field) {
 				auto it = object.find(Member::s_name);
 				if(it == object.end()) 
 					throw std::runtime_error(std::string("No value named ") + Member::s_name.data + " in Json");
-				Member::read(it->second, field);
+                field = Member::template read<std::remove_cvref_t<decltype(field)>>(it->second);
 			});
+            return result;
 		}
 
 		template<typename T>
-		static void write(Value& json, const T& val) {
-            json = Value::object();
+		static Value write(const T& val) {
+            Value json = Value::object();
             auto& object = json.asObject();
 			visit(val, [&]<typename Member>(auto& field) {
-                Value v;
-                Member::write(v, field);
+                Value v = Member::write(field);
                 object.emplace(std::make_pair(Member::s_name, std::move(v)));
 			});
+            return json;
         }
     };
 
     template<typename T>
-    struct ContainerTraits;
+    struct ContainerTraits {};
 
     template<typename T, typename Alloc>
     struct ContainerTraits<std::vector<T, Alloc>> {
@@ -168,27 +163,68 @@ namespace Json
     template<typename Schema>
     struct ContainerSchema {
 		template<typename T>
-		static void read(const Value& json, T& val) requires ReadSchemaFor<Schema, T>  {
+		static T read(const Value& json) {
+            using ValueType = typename ContainerTraits<T>::ValueType;
 			if(!json.isArray()) throw std::runtime_error("Json Value has wrong type");
 			const auto& arr = json.asArray();
-
-			ContainerTraits<T>::resize(val, arr.size());
+            T result;
+			ContainerTraits<T>::resize(result, arr.size());
 			for(size_t i = 0; i < arr.size(); ++i) {
-                typename ContainerTraits<T>::ValueType v;
-                Schema::read(arr[i], v);
-                ContainerTraits<T>::add(val, std::move(v), i);
+                ContainerTraits<T>::add(result, Schema::template read<ValueType>(arr[i]), i);
 			}
+            return result;
         }
 
 		template<typename T>
-		static void write(Value& json, const T& val) requires WriteSchemaFor<Schema, T>  {
-            json = Value::array();
+		static Value write(const T& val) {
+            Value json = Value::array();
             auto& arr = json.asArray();
             arr.resize(ContainerTraits<T>::size(val));
             size_t i = 0;
 			for(const auto& field : val) {
-                Schema::write(arr[i], field); ++i;
+                arr[i] = Schema::write(field); ++i;
 			}
+            return json;
+        }
+    };
+
+    template<typename T, Detail::FixedString Name, typename Schema>
+    struct TypedSchema : NamedSchema<Name, Schema> {
+        using ValueType = T;
+    };
+
+    template<typename... SchemasT>
+    struct ConstructorSchema {
+        using Values = std::tuple<typename SchemasT::ValueType...>;
+        static constexpr std::size_t s_size = sizeof...(SchemasT);
+
+        template<typename T>
+        static T read(const Value& json) {
+            switch(json.getType()) {
+                case Value::Type::Object: {
+                        const auto& object = json.asObject();
+                        return T(
+                            SchemasT::template read<typename SchemasT::ValueType>(
+                                object.at(SchemasT::s_name.data)
+                            )...
+                        );
+                    }
+                    break;
+                case Value::Type::Array: {
+                        size_t i = 0;
+                        const auto& arr = json.asArray();
+                        if(arr.size() != s_size) throw std::runtime_error(
+                            "Json Value array size doesn't match target array size");
+                        return T(
+                            SchemasT::template read<typename SchemasT::ValueType>(
+                                arr[i++]
+                            )...
+                        );
+                    }
+                    break;
+                default:
+                    throw std::runtime_error("Json Value has wrong type");
+            }
         }
     };
 }
