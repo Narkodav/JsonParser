@@ -30,20 +30,40 @@ endif()
 # =========================
 # Benchmarks
 # =========================
-option(JSONPARSER_BUILD_BENCHMARKS "Build JsonParser benchmarks" ON)
+option(JSONPARSER_BUILD_BENCHMARKS "Build JsonParser benchmarks" OFF)
+option(JSONPARSER_BUILD_EXAMPLES "Build JsonParser examples" ON)
 
 if(JSONPARSER_BUILD_BENCHMARKS)
-    file(GLOB TEST_SOURCES "tests/benchmark.cpp")
+    file(GLOB BENCHMARK_SOURCES 
+    "tests/benchmark.cpp"
+    )
 
-    add_executable(JsonParserBenchmark ${TEST_SOURCES})
+    add_executable(JsonParserBenchmark ${BENCHMARK_SOURCES})
     target_link_libraries(JsonParserBenchmark PRIVATE JsonParser)
     target_include_directories(JsonParserBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
     # Copy JSON test files
-    file(GLOB TEST_FILES "tests/*.json")
-    foreach(TEST_FILE ${TEST_FILES})
-        get_filename_component(FILENAME ${TEST_FILE} NAME)
-        configure_file(${TEST_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${FILENAME} COPYONLY)
+    file(GLOB BENCHMARK_SOURCES "tests/*.json")
+    foreach(BENCHMARK_FILE ${BENCHMARK_SOURCES})
+        get_filename_component(FILENAME ${BENCHMARK_FILE} NAME)
+        configure_file(${BENCHMARK_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${FILENAME} COPYONLY)
+    endforeach()
+endif()
+
+if(JSONPARSER_BUILD_EXAMPLES)
+    file(GLOB EXAMPLE_SOURCES 
+    "tests/example.cpp"
+    )
+
+    add_executable(JsonParserExamples ${EXAMPLE_SOURCES})
+    target_link_libraries(JsonParserExamples PRIVATE JsonParser)
+    target_include_directories(JsonParserExamples PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+    # Copy JSON test files
+    file(GLOB EXAMPLE_FILES "tests/*.json")
+    foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
+        get_filename_component(FILENAME ${EXAMPLE_FILE} NAME)
+        configure_file(${EXAMPLE_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${FILENAME} COPYONLY)
     endforeach()
 endif()
 

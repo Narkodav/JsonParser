@@ -16,6 +16,7 @@
 #include "JsonParser/StreamParser.h"
 #include "JsonParser/StrictContainerParser.h"
 #include "JsonParser/StrictStreamParser.h"
+#include "JsonParser/SchemaParser.h"
 
 namespace Json
 {
@@ -25,8 +26,7 @@ namespace Json
         struct EnumToTypeTrait : std::false_type {};
     }
 
-	class Value
-	{
+	class Value {
 	public:
 		enum class Type
 		{			
@@ -68,7 +68,10 @@ namespace Json
 		using Object = std::unordered_map<std::string, Value,
 			TransparentObjectHash, TransparentObjectEqual>;
 
-		using Storage = std::variant<std::vector<Value>*, Object*, std::string*, bool, int64_t, double, std::nullptr_t>;
+		using Array = std::vector<Value>;
+		using String = std::string;
+
+		using Storage = std::variant<Array*, Object*, String*, bool, int64_t, double, std::nullptr_t>;
 
 	protected:
 		Storage m_value;
@@ -76,21 +79,39 @@ namespace Json
 	public:
 		Value() : m_value(nullptr) {};
 
-		template<typename T>
-		Value(std::initializer_list<T> values) requires std::convertible_to<T, bool>
-			|| std::convertible_to<T, double>
-			|| std::convertible_to<T, int>
-			|| std::convertible_to<T, std::string>
-			|| std::convertible_to<T, std::string_view>
-			|| std::convertible_to<T, const char*>
-			|| std::convertible_to<T, std::nullptr_t> {
-			m_value = new std::vector<Value>();
-			auto& arr = *std::get<std::vector<Value>*>(m_value);
+		Value(std::initializer_list<Value> values) {
+			m_value = new Array();
+			auto& arr = asArray();
 			arr.reserve(values.size());
 			for (auto& val : values) {
 				arr.emplace_back(std::move(val));
 			}
 		};
+
+		Value(std::initializer_list<std::pair<std::string_view, Value>> values) {
+			m_value = new Object();
+			auto& map = asObject();
+			map.reserve(values.size());
+			for (auto& pair : values) {
+				map.emplace(pair.first, pair.second);
+			}
+		}
+
+		// template<typename T>
+		// Value(std::initializer_list<T> values) requires std::convertible_to<T, bool>
+		// 	|| std::convertible_to<T, double>
+		// 	|| std::convertible_to<T, int>
+		// 	|| std::convertible_to<T, std::string>
+		// 	|| std::convertible_to<T, std::string_view>
+		// 	|| std::convertible_to<T, const char*>
+		// 	|| std::convertible_to<T, std::nullptr_t> {
+		// 	m_value = new Array();
+		// 	auto& arr = *std::get<Array*>(m_value);
+		// 	arr.reserve(values.size());
+		// 	for (auto& val : values) {
+		// 		arr.emplace_back(std::move(val));
+		// 	}
+		// };
 		Value(std::string_view value) {
 			m_value = new std::string(value);
 		}
@@ -118,14 +139,6 @@ namespace Json
 		Value(T value) requires std::same_as<T, bool> {
 			m_value = value;
 		}
-		Value(std::initializer_list<std::pair<std::string, Value>> values) {
-			m_value = new Object();
-			auto& map = *std::get<Object*>(m_value);
-			map.reserve(values.size());
-			for (auto& pair : values) {
-				map.emplace(pair.first, pair.second);
-			}
-		}
 		Value(std::nullptr_t) {
 			m_value = nullptr;
 		}
@@ -148,7 +161,7 @@ namespace Json
 		~Value() {
 			switch (getType()) {
 			case Type::Array:
-				delete std::get<std::vector<Value>*>(m_value);
+				delete std::get<Array*>(m_value);
 				break;
 			case Type::Object:
 				delete std::get<Object*>(m_value);
@@ -164,7 +177,7 @@ namespace Json
 		Value(const Value& other) {
 			switch (other.getType()) {
 			case Type::Array:
-				m_value = new std::vector<Value>(*std::get<std::vector<Value>*>(other.m_value));
+				m_value = new Array(*std::get<Array*>(other.m_value));
 				break;
 			case Type::Object:
 				m_value = new Object(*std::get<Object*>(other.m_value));
@@ -183,7 +196,7 @@ namespace Json
 				this->~Value();
 				switch (other.getType()) {
 				case Type::Array:
-					m_value = new std::vector<Value>(*std::get<std::vector<Value>*>(other.m_value));
+					m_value = new Array(*std::get<Array*>(other.m_value));
 					break;
 				case Type::Object:
 					m_value = new Object(*std::get<Object*>(other.m_value));
@@ -214,11 +227,11 @@ namespace Json
 
 		static Value array(std::initializer_list<Value> values = {}) {
 			Value val;
-			val.m_value = new std::vector<Value>(std::move(values));
+			val.m_value = new Array(std::move(values));
 			return val;
 		}
 
-		static Value object(std::initializer_list<std::pair<std::string, Value>> values = {}) {
+		static Value object(std::initializer_list<std::pair<std::string_view, Value>> values = {}) {
 			Value val;
 			val.m_value = new Object();
 			auto& map = *std::get<Object*>(val.m_value);
@@ -230,14 +243,14 @@ namespace Json
 
 		void pushBack(const Value& value) {
 			JSON_VERIFY(getType() == Type::Array, "Type mismatch");
-			auto& arr = *std::get<std::vector<Value>*>(m_value);
+			auto& arr = *std::get<Array*>(m_value);
 			arr.push_back(value);
 		}
 
         template<typename... Args>
 		void emplaceBack(Args&&... args) {
 			JSON_VERIFY(getType() == Type::Array, "Type mismatch");
-			auto& arr = *std::get<std::vector<Value>*>(m_value);
+			auto& arr = *std::get<Array*>(m_value);
 			arr.emplace_back(std::forward<Args>(args)...);
 		}
 
@@ -248,7 +261,7 @@ namespace Json
 		}
 		Value& operator[](size_t index) {
 			JSON_VERIFY(getType() == Type::Array, "Type mismatch");
-			auto& arr = *std::get<std::vector<Value>*>(m_value);
+			auto& arr = *std::get<Array*>(m_value);
 			return arr[index];
 		}
 
@@ -268,9 +281,9 @@ namespace Json
 			JSON_VERIFY(getType() == Type::String, "Type mismatch");
 			return *std::get<std::string*>(m_value);
 		}
-		std::vector<Value>& asArray() {
+		Array& asArray() {
             JSON_VERIFY(getType() == Type::Array, "Type mismatch");
-			return *std::get<std::vector<Value>*>(m_value);
+			return *std::get<Array*>(m_value);
 		}
 		Object& asObject() {
             JSON_VERIFY(getType() == Type::Object, "Type mismatch");
@@ -295,8 +308,8 @@ namespace Json
 		const std::string& asString() const {
 			return const_cast<const std::string&>(const_cast<Value*>(this)->asString());
 		}
-		const std::vector<Value>& asArray() const {
-			return const_cast<const std::vector<Value>&>(const_cast<Value*>(this)->asArray());
+		const Array& asArray() const {
+			return const_cast<const Array&>(const_cast<Value*>(this)->asArray());
 		}
 		const Object& asObject() const {
 			return const_cast<const Object&>(const_cast<Value*>(this)->asObject());
@@ -448,6 +461,18 @@ namespace Json
 			return StrictStreamParser<Value>::parse(file);
 		}
 
+		//std::variant<Array*, Object*, String*, bool, int64_t, double, std::nullptr_t>;
+
+		// template<typename T>
+		// T toType() const {
+		// 	if constexpr (std::convertible_to<Array, T>) {
+		// 		if(isArray()) return asArray();
+		// 	} 
+		// 	else if constexpr (std::convertible_to<Object, T>) {
+
+		// 	}
+		// }
+
 		bool operator==(const Value& other) const {
 			switch (getType()) {
 			case Type::Array:
@@ -464,17 +489,6 @@ namespace Json
 		bool operator!=(const Value& other) const {
 			return !(*this == other);
 		}
-
-		// enum class Type
-		// {			
-        //     Array,
-		// 	Object,
-		// 	String,
-		// 	Bool,
-		// 	Integer,
-		// 	Number,
-		// 	Null
-		// };
 
 		bool operator<(const Value& other) const {
 			JSON_VERIFY(getType() == other.getType(), "Comparing Values containing different types");
@@ -563,13 +577,91 @@ namespace Json
 				return false;
 			}
 		}
+
+		template<typename Schema, typename T = Schema::ValueType>
+		T toStruct() const {
+			T result;
+			parseValue<Schema>(*this, result);
+			return result;
+		}
+
+	private:
+		template<typename Schema, typename T>
+		static void parseValue(const Value& json, T& val) {
+			if constexpr (ObjectSchemaConcept<Schema>) {
+				parseObject<Schema>(json, val);
+			}
+			else if constexpr (ArraySchemaConcept<Schema>) {
+				parseArray<Schema>(json, val);
+			}
+			else {
+				parsePrimitive<Schema>(json, val);
+			}
+		}
+
+		template<ObjectSchemaConcept Schema, typename T>
+		static void parseObject(const Value& json, T& val) {
+			if(!json.isObject()) throw std::runtime_error("Json Value has wrong type");
+			const auto& object = json.asObject();
+
+			Schema::visit(val, [&]<typename Member>(auto& field) {
+				auto it = object.find(Member::s_name);
+				if(it == object.end()) 
+					throw std::runtime_error(std::string("No value named ") + Member::s_name.data + " in Json");
+				parseValue<typename Member::ElementSchema>(it->second, field);
+			});
+		}
+
+		template<ArraySchemaConcept Schema, typename T>
+		static void parseArray(const Value& json, T& val) {
+			if(!json.isArray()) throw std::runtime_error("Json Value has wrong type");
+			const auto& array = json.asArray();
+
+			ContainerTraits<T>::resize(val, array.size());
+			for(size_t i = 0; i < array.size(); ++i) {
+				parseValue<typename Schema::ElementSchema>(array[i], ContainerTraits<T>::at(val, i));
+			}
+		}
+
+		template<PrimitiveSchemaConcept Schema, typename T>
+		static void parsePrimitive(const Value& json, T& val) {
+			switch(json.getType()) {
+				case Value::Type::String:
+					if constexpr (std::convertible_to<Value::String, T>) {
+						val = json.asString();
+					}
+					else throw std::runtime_error("Json is not convertible to String");
+					break;
+				case Value::Type::Bool:
+					if constexpr (std::convertible_to<bool, T>) {
+						val = json.asBool();
+					}
+					else throw std::runtime_error("Json is not convertible to Bool");
+					break;
+				case Value::Type::Integer:
+					if constexpr (std::convertible_to<int64_t, T>) {
+						val = json.asInteger();
+					}
+					else throw std::runtime_error("Json is not convertible to Integer");
+					break;
+				case Value::Type::Number:
+					if constexpr (std::convertible_to<double, T>) {
+						val = json.asNumber();
+					}
+					else throw std::runtime_error("Json is not convertible to Number");
+					break;
+				default:
+					throw std::runtime_error("Json Value has wrong type");
+					break;
+			}
+		}
 	};
 
     namespace Detail
     {
         template<>
         struct EnumToTypeTrait<Value::Type::Array> {
-            using Type = std::vector<Value>*;
+            using Type = typename Value::Array;
         };
 
         template<>
@@ -589,12 +681,12 @@ namespace Json
 
         template<>
         struct EnumToTypeTrait<Value::Type::Object> {
-            using Type = Value::Object*;
+            using Type = typename Value::Object;
         };
 
         template<>
         struct EnumToTypeTrait<Value::Type::String> {
-            using Type = std::string*;
+            using Type = typename Value::String;
         };
 
         template<>
@@ -602,5 +694,8 @@ namespace Json
             using Type = std::nullptr_t;
         };
     }
+
+	using KeyValPair = std::pair<std::string, Json::Value>;
+	using Pair = KeyValPair;
 }
 
