@@ -35,6 +35,8 @@ cmake --build .
 ./JsonParserBenchmark
 ```
 
+Optionally you can run BuildPresets.py script to automatically build all available presets.
+
 ### Build with benchmarks enabled (default):
 ```
 cmake ..
@@ -122,23 +124,23 @@ Basic usage example:
 int main() {
     // Creating JSON values using initializer lists
     {
-        Json::Value val = {
+        Json::Value val = Json::ObjectList{
             {"pi", 3.141},
             {"happy", true},
             {"name", "Niels"},
             {"nothing", nullptr},
-            {"answer", {
+            {"answer", Json::ObjectList{
                 {"everything", 42}
             }},
             {"list", {1, 0, 2}},
-            {"object", {
+            {"object", Json::ObjectList{
                 {"currency", "USD"},
                 {"value", 42.99}
             }},
-            {"different", Json::Value::array({"abc", 1, true})},
+            {"different", {"abc", 1, true}},
         };
         
-        Json::Value val1 = { {"name", "Niels"} };
+        Json::Value val1 = Json::ObjectList{ {"name", "Niels"} };
         
         // Stringify JSON to string
         std::string stringified = val.stringify();        
@@ -209,10 +211,119 @@ int main() {
     std::string str = "asdsdf";
     Json::Value s1 = { {"abc", str } };
 
+    // Schema based struct conversion
+    struct Vec3 {
+        float x, y, z;
+        using Schema = Json::StructSchema<
+        Json::MemberSchema<"x", &Vec3::x, Json::PrimitiveSchema>,
+        Json::MemberSchema<"y", &Vec3::y, Json::PrimitiveSchema>,
+        Json::MemberSchema<"z", &Vec3::z, Json::PrimitiveSchema>
+    >;
+    };
+
+    using ArraySchema = Json::ArraySchema<Json::PrimitiveSchema>;
+    using NestedArraySchema = Json::ArraySchema<ArraySchema>;
+
+    using VecArraySchema = Json::ArraySchema<Vec3::Schema>;
+    using NestedVecArraySchema = Json::ArraySchema<VecArraySchema>;
+
+    struct TestStruct {
+        Vec3 vec;
+        std::vector<int> a1;
+        std::vector<std::vector<int>> a2;
+        std::vector<Vec3> a3;
+        std::vector<std::vector<Vec3>> a4;
+        int val;
+        using Schema = Json::StructSchema<
+            Json::MemberSchema<"vec", &TestStruct::vec, Vec3::Schema>,
+            Json::MemberSchema<"a1", &TestStruct::a1, ArraySchema>,
+            Json::MemberSchema<"a2", &TestStruct::a2, NestedArraySchema>,
+            Json::MemberSchema<"a3", &TestStruct::a3, VecArraySchema>,
+            Json::MemberSchema<"a4", &TestStruct::a4, NestedVecArraySchema>,
+            Json::MemberSchema<"val", &TestStruct::val, Json::PrimitiveSchema>
+    >;
+    };
+
+    Json::Value val2 = Json::ObjectList{
+        { "vec", Json::ObjectList{
+            { "x", 1.0f },
+            { "y", 1.0f },
+            { "z", 1.0f },
+        }},
+        { 	
+            "a1", 
+            {0, 1, 2, 3, 4, 5}
+        },
+        {
+            "a2", 
+            {{0, 1, 2}, {0, 1, 2}, {0, 1, 2}}
+        },
+        {
+            "a3", {
+            Json::ObjectList{
+                { "x", 2.0f },
+                { "y", 2.0f },
+                { "z", 2.0f },
+            }
+        }},
+        {
+            "a4", {
+            {Json::ObjectList{
+                { "x", 2.0f },
+                { "y", 2.0f },
+                { "z", 2.0f },
+            },Json::ObjectList{
+                { "x", 2.0f },
+                { "y", 2.0f },
+                { "z", 2.0f },
+            }},
+            {Json::ObjectList{
+                { "x", 2.0f },
+                { "y", 2.0f },
+                { "z", 2.0f },
+            },Json::ObjectList{
+                { "x", 2.0f },
+                { "y", 2.0f },
+                { "z", 2.0f },
+            }}
+        }},
+        {
+            "val", 1
+        }
+    };
+
+	TestStruct s = val.toStruct<TestStruct::Schema, TestStruct>();
+
+	std::cout << "x: " << s.vec.x << ", y: " << s.vec.y << ", z: " << s.vec.z << std::endl;
+	for(size_t i = 0; i < s.a1.size(); ++i) std::cout << s.a1[i] << " ";
+	std::cout << std::endl;
+
+	for(size_t i = 0; i < s.a2.size(); ++i) {
+		for(size_t j = 0; j < s.a2[i].size(); ++j) {
+			std::cout << s.a2[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+
+	for(size_t i = 0; i < s.a3.size(); ++i) std::cout << "x: " << s.a3[i].x << ", y: " << s.a3[i].y << ", z: " << s.a3[i].z << " ";
+	std::cout << std::endl;
+
+	for(size_t i = 0; i < s.a4.size(); ++i) {
+		for(size_t j = 0; j < s.a4[i].size(); ++j) {
+			std::cout << "x: " << s.a4[i][j].x << ", y: " << s.a4[i][j].y << ", z: " << s.a4[i][j].z << " ";
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+	
+	std::cout << "val: " << s.val << std::endl;
+
     return 0;
 }
 ```
-
+Note: Objects must now be explicitly constructed with Json::ObjectList. This removes the ambiguity between JSON objects and arrays, allowing brace initialization of arrays without requiring Json::Value::array(...) in most cases.
+Arrays can still be optionally qualified with Json::ArrayList
 ## Contributing
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes,
 please open an issue first to discuss what you would like to change.

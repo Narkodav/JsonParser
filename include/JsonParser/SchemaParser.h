@@ -20,22 +20,12 @@ namespace Json
         };
     }
 
-    template<typename>
-    struct MemberTraits;
-
-    template<typename Class, typename Member>
-    struct MemberTraits<Member Class::*>
-    {
-        using ClassType = Class;
-        using MemberType = Member;
-    };
-
-    struct Primitive {
+    struct PrimitiveSchema {
         using PrimitiveTrait = void;
     };
 
     template<Detail::FixedString Name, auto Pointer, typename Schema>
-    struct Member
+    struct MemberSchema
     {
         static constexpr auto s_name = Name;
         static constexpr auto s_pointer = Pointer;
@@ -44,7 +34,7 @@ namespace Json
     };
 
     template<typename... MembersT>
-    struct MemberList {
+    struct StructSchema {
         using Members = std::tuple<MembersT...>;
 
         static constexpr std::size_t size = sizeof...(MembersT);
@@ -56,12 +46,12 @@ namespace Json
     };
 
     template<typename ElementSchemaT>
-    struct ArrayList {
+    struct ArraySchema {
         using ElementSchema = ElementSchemaT;
     };
 
     template<typename T>
-    concept ObjectSchemaConcept = requires {
+    concept StructSchemaConcept = requires {
         typename T::Members;
     };
 

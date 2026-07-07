@@ -588,7 +588,7 @@ namespace Json
 	private:
 		template<typename Schema, typename T>
 		static void parseValue(const Value& json, T& val) {
-			if constexpr (ObjectSchemaConcept<Schema>) {
+			if constexpr (StructSchemaConcept<Schema>) {
 				parseObject<Schema>(json, val);
 			}
 			else if constexpr (ArraySchemaConcept<Schema>) {
@@ -599,7 +599,7 @@ namespace Json
 			}
 		}
 
-		template<ObjectSchemaConcept Schema, typename T>
+		template<StructSchemaConcept Schema, typename T>
 		static void parseObject(const Value& json, T& val) {
 			if(!json.isObject()) throw std::runtime_error("Json Value has wrong type");
 			const auto& object = json.asObject();
@@ -697,5 +697,7 @@ namespace Json
 
 	using KeyValPair = std::pair<std::string, Json::Value>;
 	using Pair = KeyValPair;
+	using ObjectList = std::initializer_list<std::pair<std::string_view, Value>>;
+	using ArrayList = std::initializer_list<Value>;
 }
 
