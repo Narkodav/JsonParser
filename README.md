@@ -360,6 +360,71 @@ int main() {
 
 	assert(val4V == val5V);
 
+	// Polymorphic schema
+
+	enum class DerivedType {
+		Derived1,
+		Derived2,
+	};
+
+	using DTypeSchema = Json::EnumSchema<
+		Json::EnumValSchema<DerivedType::Derived1, "Derived1">,
+		Json::EnumValSchema<DerivedType::Derived2, "Derived2">
+	>;
+
+	struct Base {
+		std::array<int, 3> arr;
+		DerivedType type;
+		using ArrayMemberSchema = Json::TypedSchema<std::array<int, 3>, "arr", 
+			Json::ContainerSchema<Json::PrimitiveSchema>>;
+		using DerivedTypeSchema = Json::TypedSchema<DerivedType, "Type", DTypeSchema>;
+		Base(DerivedType type, std::array<int, 3> arr) : type(type), arr(arr) {};
+	};
+
+	struct Derived1 : Base {
+		float data;
+		using Schema = Json::ConstructorSchema<
+		DerivedTypeSchema, ArrayMemberSchema, 
+		Json::TypedSchema<float, "data", Json::PrimitiveSchema>
+		>;
+		Derived1(DerivedType type, std::array<int, 3> arr, float data) : 
+			Base(type, arr), data(data) {};
+	};
+
+	struct Derived2 : Base {
+		std::string data;
+		using Schema = Json::ConstructorSchema<
+		DerivedTypeSchema, ArrayMemberSchema, 
+		Json::TypedSchema<std::string, "data", Json::PrimitiveSchema>
+		>;
+		Derived2(DerivedType type, std::array<int, 3> arr, std::string data) : 
+			Base(type, arr), data(data) {};
+	};
+
+	static_assert(std::convertible_to<Json::Value::String, std::string>);
+
+	using Polymorphic = Json::PolymorphicSchema<"Type", 
+		Json::TypedSchema<Derived1, "Derived1", Derived1::Schema>, 
+		Json::TypedSchema<Derived2, "Derived2", Derived2::Schema>>;
+
+	Json::Value valPoly1 = Json::ObjectList{
+		{"Type", "Derived1"},
+		{"arr", {1, 2, 3}},
+		{"data", 1.f},
+	};
+
+	Json::Value valPoly2 = Json::ObjectList{
+		{"Type", "Derived2"},
+		{"arr", {1, 2, 3}},
+		{"data", "qwerty"},
+	};
+
+	std::unique_ptr<Base> ptr1 = valPoly1.toStruct<Polymorphic, std::unique_ptr<Base>>();
+	std::unique_ptr<Base> ptr2 = valPoly2.toStruct<Polymorphic, std::unique_ptr<Base>>();
+
+	std::cout << static_cast<size_t>(ptr1->type) << std::endl;
+	std::cout << static_cast<size_t>(ptr2->type) << std::endl;
+
 	return 0;
 }
 ```

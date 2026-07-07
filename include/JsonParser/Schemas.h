@@ -49,7 +49,7 @@ namespace Json
 
     template<Detail::FixedString Name, typename Schema>
     struct NamedSchema {
-        static constexpr auto s_name = Name;
+        static constexpr std::string_view s_name = Name.data;
 
         template<typename T>
 		static auto read(const Value& json) {
@@ -86,7 +86,7 @@ namespace Json
 			visit(result, [&]<typename Member>(auto& field) {
 				auto it = object.find(Member::s_name);
 				if(it == object.end()) 
-					throw std::runtime_error(std::string("No value named ") + Member::s_name.data + " in Json");
+					throw std::runtime_error(std::string("No value named ") + Member::s_name.data() + " in Json");
                 field = Member::template read<std::remove_cvref_t<decltype(field)>>(it->second);
 			});
             return result;
@@ -205,8 +205,8 @@ namespace Json
                         const auto& object = json.asObject();
                         return T(
                             SchemasT::template read<typename SchemasT::ValueType>(
-                                object.at(SchemasT::s_name.data)
-                            )...
+                                object.at(SchemasT::s_name.data())
+                            ) ...
                         );
                     }
                     break;
@@ -225,6 +225,64 @@ namespace Json
                 default:
                     throw std::runtime_error("Json Value has wrong type");
             }
+        }
+    };
+
+    template<Detail::FixedString TypeField, typename... SchemasT>
+    struct PolymorphicSchema {
+        using Schemas = std::tuple<SchemasT...>;
+        static constexpr std::size_t s_size = sizeof...(SchemasT);
+
+		template<typename T>
+		static T read(const Value& json)  {
+			if(!json.isObject()) throw std::runtime_error("Json Value has wrong type");
+			const auto& object = json.asObject();
+			auto type = object.find(TypeField.data);
+			if(type == object.end()) 
+                throw std::runtime_error(std::string("No type field named ") + TypeField.data + " in Json");
+			if(!type->second.isString()) 
+                throw std::runtime_error(std::string("Type name filed must be a string"));
+            const auto& typeName = type->second.asString();
+
+            T result;
+            (
+                (std::strcmp(typeName.data(), SchemasT::s_name.data()) == 0 &&
+                (result = std::make_unique<typename SchemasT::ValueType>(
+                    SchemasT::template read<typename SchemasT::ValueType>(json)), true)) || ...
+                || (throw std::runtime_error("Unknown object type: " + type->second.asString()), true)
+            );
+            return result;
+		}
+    };
+
+    template<auto Val, Detail::FixedString Name>
+    struct EnumValSchema {
+        static constexpr std::string_view s_name = Name.data;
+        static constexpr auto s_value = Val;
+        using ValueType = decltype(s_value);
+    };
+
+    template<typename... SchemasT>
+    struct EnumSchema {
+        template<typename T>
+        static T read(const Value& json) {
+			switch(json.getType()) {
+                case Value::Type::String: {
+                        T result;
+                        (
+                            (std::strcmp(json.asString().data(), SchemasT::s_name.data()) == 0 &&
+                            (result = SchemasT::s_value, true)) || ... 
+                            || (throw std::runtime_error("Unknown enum value"), true)
+                        );
+                        return result;
+                    } break;
+				case Value::Type::Integer:
+                    return static_cast<T>(json.asInteger());
+					break;
+				default:
+					throw std::runtime_error("Json Value has wrong type");
+					break;
+			}
         }
     };
 }
