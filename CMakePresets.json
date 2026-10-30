@@ -23,13 +23,6 @@
         },
 
         {
-            "name": "mingw",
-            "hidden": true,
-            "inherits": "base",
-            "generator": "Ninja"
-        },
-
-        {
             "name": "msvc",
             "hidden": true,
             "inherits": "base",
@@ -55,28 +48,6 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/clang.cmake"
-            }
-        },
-
-        {
-            "name": "mingw-debug-base",
-            "hidden": true,
-            "inherits": "mingw",
-            "binaryDir": "${sourceDir}/build/mingw-debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/mingw.cmake"
-            }
-        },
-
-        {
-            "name": "mingw-release-base",
-            "hidden": true,
-            "inherits": "mingw",
-            "binaryDir": "${sourceDir}/build/mingw-release",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/mingw.cmake"
             }
         },
 

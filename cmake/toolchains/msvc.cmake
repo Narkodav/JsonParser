@@ -1,5 +1,4 @@
 # cmake/toolchains/msvc.cmake
 
-# MSVC is usually auto-detected via Visual Studio environment
-
-set(CMAKE_GENERATOR "Ninja")
+set(CMAKE_C_COMPILER cl)
+set(CMAKE_CXX_COMPILER cl)

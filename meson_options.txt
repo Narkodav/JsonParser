@@ -1,0 +1,2 @@
+option('build_benchmarks', type: 'boolean', value: false, description: 'Build JsonParser benchmarks')
+option('build_examples', type: 'boolean', value: true, description: 'Build JsonParser examples')
